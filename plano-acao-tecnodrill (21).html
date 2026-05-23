@@ -1,0 +1,1513 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tecnodrill — Planos de Ação 5W2H</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --black:#0a0a0a;--dark:#0f0f12;--surface:#15181d;--card:#1a1d22;
+  --border:#2a2f38;--orange:#E8000D;--orange2:#FF1A24;--orange-dim:#3d0005;
+  --white:#f4f4f4;--muted:#8a9099;--danger:#FF2020;--warn:#FFB800;--ok:#00D166;
+  --fh:'Barlow Condensed',sans-serif;--fb:'Barlow',sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--black);color:var(--white);font-family:var(--fb);font-size:17px;line-height:1.65;overflow-x:hidden;min-height:100vh}
+
+/* ── SYNC BAR ── */
+.sync-bar{background:var(--dark);border-bottom:1px solid var(--border);padding:5px 40px;display:flex;align-items:center;gap:8px;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--muted)}
+.sync-dot{width:7px;height:7px;border-radius:50%;background:var(--muted);transition:background .3s;flex-shrink:0}
+.sync-dot.online{background:var(--ok);box-shadow:0 0 5px var(--ok)}
+.sync-dot.saving{background:var(--warn);animation:pulse .6s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* ── HEADER ── */
+header{background:var(--dark);border-bottom:3px solid var(--orange);padding:0 40px;display:flex;align-items:center;justify-content:space-between;height:68px;position:sticky;top:0;z-index:1000}
+.logo{display:flex;align-items:center;gap:12px;cursor:pointer}
+.logo-hex{width:40px;height:40px;background:var(--orange);clip-path:polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%);display:flex;align-items:center;justify-content:center;font-family:var(--fh);font-weight:800;font-size:17px;color:#fff;flex-shrink:0}
+.logo-name{font-family:var(--fh);font-weight:700;font-size:26px;letter-spacing:2px;text-transform:uppercase}
+.logo-name span{color:var(--orange)}
+.header-right{display:flex;align-items:center;gap:12px}
+.breadcrumb{font-family:var(--fh);font-size:14px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);display:flex;align-items:center;gap:8px}
+.breadcrumb .sep{opacity:.4}
+.breadcrumb .proj-name{color:var(--orange)}
+.btn-back{font-family:var(--fh);font-size:13px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);background:transparent;border:1px solid var(--border);padding:6px 16px;border-radius:3px;cursor:pointer;transition:all .2s;display:none}
+.btn-back:hover{border-color:var(--orange);color:var(--orange)}
+.htag{font-family:var(--fh);font-size:13px;letter-spacing:3px;text-transform:uppercase;color:var(--muted);border:1px solid var(--border);padding:5px 14px;border-radius:2px}
+
+/* ════════════════════════════════
+   DASHBOARD
+════════════════════════════════ */
+#screen-dashboard{display:block}
+#screen-project{display:none}
+
+.dash-hero{padding:64px 40px 48px;background:var(--dark);border-bottom:1px solid var(--border)}
+.dash-hero .kicker{font-family:var(--fh);font-size:20px;letter-spacing:4px;text-transform:uppercase;color:var(--orange);margin-bottom:16px;display:flex;align-items:center;gap:12px}
+.dash-hero .kicker::before{content:'';width:28px;height:2px;background:var(--orange);display:block}
+.dash-hero h1{font-family:var(--fh);font-size:72px;font-weight:800;text-transform:uppercase;line-height:1;letter-spacing:-2px;margin-bottom:16px}
+.dash-hero h1 em{color:var(--orange);font-style:normal}
+.dash-hero p{font-size:18px;color:var(--muted);max-width:600px}
+
+.dash-body{padding:48px 40px 80px}
+.dash-section-title{font-family:var(--fh);font-size:13px;letter-spacing:4px;text-transform:uppercase;color:var(--muted);margin-bottom:20px}
+
+.proj-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;margin-bottom:20px}
+
+.proj-card{background:var(--card);border:1px solid var(--border);border-top:4px solid var(--border);border-radius:6px;padding:24px;cursor:pointer;transition:all .2s;position:relative;overflow:hidden}
+.proj-card::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(232,0,13,.04) 0%,transparent 60%);pointer-events:none}
+.proj-card:hover{border-color:var(--orange);border-top-color:var(--orange);transform:translateY(-2px);box-shadow:0 8px 32px rgba(232,0,13,.12)}
+.proj-card.add-card{border-style:dashed;border-top-style:dashed;background:transparent;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;min-height:160px}
+.proj-card.add-card:hover{background:rgba(232,0,13,.04)}
+.proj-card.add-card .add-icon{width:44px;height:44px;border:2px dashed var(--border);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;color:var(--muted);transition:all .2s}
+.proj-card.add-card:hover .add-icon{border-color:var(--orange);color:var(--orange)}
+.proj-card.add-card span{font-family:var(--fh);font-size:15px;letter-spacing:2px;text-transform:uppercase;color:var(--muted)}
+.proj-card.add-card:hover span{color:var(--orange)}
+
+.pc-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px}
+.pc-icon{width:44px;height:44px;background:var(--orange-dim);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+.pc-menu{background:transparent;border:none;color:var(--muted);cursor:pointer;font-size:18px;padding:4px;transition:color .2s;position:relative}
+.pc-menu:hover{color:var(--white)}
+.pc-name{font-family:var(--fh);font-size:22px;font-weight:700;text-transform:uppercase;margin-bottom:6px;line-height:1.1}
+.pc-desc{font-size:14px;color:var(--muted);line-height:1.5;margin-bottom:16px}
+.pc-stats{display:flex;gap:12px;flex-wrap:wrap}
+.pc-stat{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:5px}
+.pc-stat .dot{width:7px;height:7px;border-radius:50%}
+.pc-date{font-size:12px;color:var(--muted);letter-spacing:.5px;margin-top:14px;padding-top:14px;border-top:1px solid var(--border)}
+
+/* ════════════════════════════════
+   PROJECT SCREEN
+════════════════════════════════ */
+.proj-hero{padding:48px 40px 36px;background:var(--dark)}
+.proj-hero .kicker{display:none}
+
+.proj-hero h1{font-family:var(--fh);font-size:48px;font-weight:800;text-transform:uppercase;line-height:1;letter-spacing:-1px;margin-bottom:8px}
+.proj-hero h1 em{color:var(--orange);font-style:normal}
+.proj-hero .proj-desc{font-size:15px;color:var(--muted);margin-bottom:20px}
+.hero-meta{display:flex;gap:32px;flex-wrap:wrap}
+.mi label{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:3px}
+.mi span{font-family:var(--fh);font-size:18px;font-weight:600}
+.hint{margin-top:16px;font-size:13px;color:var(--muted)}
+
+/* SUMMARY */
+.summary{display:grid;grid-template-columns:repeat(6,1fr);border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.sbox{background:var(--dark);padding:20px 24px;border-right:1px solid var(--border);position:relative}
+.sbox::before{content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);width:3px;height:32px;background:var(--orange);border-radius:0 2px 2px 0}
+.sbox:last-child{border-right:none}
+.snum{font-family:var(--fh);font-size:40px;font-weight:800;line-height:1;transition:all .3s}
+.slabel{font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-top:4px}
+
+/* SECTION */
+.sec-title{padding:40px 40px 24px;display:flex;align-items:flex-end;justify-content:space-between}
+.sec-title h2{font-family:var(--fh);font-size:13px;letter-spacing:4px;text-transform:uppercase;color:var(--orange);margin-bottom:6px}
+.sec-title h3{font-family:var(--fh);font-size:30px;font-weight:700;text-transform:uppercase}
+.legenda{display:flex;gap:14px;align-items:center}
+.leg{display:flex;align-items:center;gap:5px;font-size:13px;color:var(--muted)}
+.leg-dot{width:7px;height:7px;border-radius:50%}
+
+/* CARDS */
+.cards{padding:0 40px 48px;display:flex;flex-direction:column;gap:3px}
+.action-card{background:var(--card);border:1px solid var(--border);border-left:5px solid var(--border);border-radius:4px;transition:transform .2s}
+.action-card.alta{border-left-color:var(--danger)}
+.action-card.media{border-left-color:var(--warn)}
+
+.card-head{padding:16px 22px;display:flex;align-items:center;gap:12px;background:var(--surface);user-select:none}
+
+.card-title{font-family:var(--fh);font-size:19px;font-weight:700;text-transform:uppercase;line-height:1.2;flex:1;outline:none;cursor:text;border-bottom:1px dashed rgba(232,0,13,.3)}
+.card-title:focus{border-bottom-color:var(--orange);background:rgba(232,0,13,.05);padding:2px 4px;border-radius:2px}
+.card-controls{display:flex;align-items:center;gap:7px;flex-shrink:0}
+.btn-status,.btn-prio{font-family:var(--fh);font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:5px 12px;border-radius:3px;border:none;cursor:pointer;transition:opacity .2s,transform .1s;white-space:nowrap}
+.btn-status:hover,.btn-prio:hover{opacity:.8;transform:scale(1.03)}
+.s-pending{background:#fff;color:var(--danger);border:2px solid var(--danger)}
+.s-ongoing{background:#fff;color:var(--warn);border:2px solid var(--warn)}
+.s-done{background:#fff;color:var(--ok);border:2px solid var(--ok)}
+.p-alta{background:#fff;color:var(--danger);border:2px solid var(--danger)}
+.p-media{background:#fff;color:var(--warn);border:2px solid var(--warn)}
+.toggle-btn{width:24px;height:24px;border:1px solid var(--border);border-radius:2px;display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--muted);transition:all .25s;flex-shrink:0;background:transparent;cursor:pointer}
+.action-card.open .toggle-btn{background:var(--orange);color:#fff;border-color:var(--orange);transform:rotate(45deg)}
+.action-card.open .card-head{border-bottom:1px solid var(--border)}
+
+/* PICKER */
+.picker-wrap{position:fixed;z-index:9999;display:none}
+.picker-wrap.show{display:block}
+.picker-box{background:#1a1e25;border:1px solid var(--border);border-radius:8px;padding:8px;box-shadow:0 20px 60px rgba(0,0,0,.8);min-width:200px}
+.picker-head{font-family:var(--fh);font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--muted);padding:4px 8px 10px;border-bottom:1px solid var(--border);margin-bottom:6px}
+.pick-opt{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:5px;cursor:pointer;transition:background .15s;border:none;background:transparent;width:100%;text-align:left}
+.pick-opt:hover{background:rgba(255,255,255,.06)}
+.pick-opt.active{background:rgba(232,0,13,.12)}
+.pick-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.pick-label{font-family:var(--fh);font-size:14px;font-weight:700;letter-spacing:1px;text-transform:uppercase}
+.pick-check{margin-left:auto;font-size:14px;color:var(--orange);opacity:0}
+.pick-opt.active .pick-check{opacity:1}
+
+/* BODY */
+.card-body{display:none;padding:0 22px 22px}
+.action-card.open .card-body{display:block}
+.w2h-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1px;background:var(--border);margin-top:18px;border-radius:4px;overflow:hidden}
+.wcell{background:var(--surface);padding:15px 18px}
+.wcell.s2{grid-column:span 2}
+.wcell.full{grid-column:1/-1}
+
+/* FIELD LABEL WITH INFO */
+.wlabel{font-family:var(--fh);font-size:18px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--white);margin-bottom:14px;display:flex;align-items:center;gap:10px;position:relative}
+.wlabel::before{content:"›";font-size:22px;font-weight:900;color:var(--orange);line-height:1;margin-right:-2px}
+.info-btn{width:16px;height:16px;border-radius:50%;border:1px solid var(--muted);background:transparent;color:var(--muted);font-size:10px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s;margin-left:auto;font-family:var(--fb)}
+.info-btn:hover{border-color:var(--orange);color:var(--orange);background:rgba(232,0,13,.1)}
+
+/* TOOLTIP */
+.tooltip-overlay{position:fixed;inset:0;z-index:8000;display:none}
+.tooltip-overlay.show{display:block}
+.tooltip-box{position:fixed;z-index:8001;background:#1a1e25;border:1px solid var(--border);border-top:2px solid var(--orange);border-radius:8px;padding:16px 18px;max-width:280px;box-shadow:0 16px 48px rgba(0,0,0,.7);pointer-events:none}
+.tooltip-title{font-family:var(--fh);font-size:14px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--orange);margin-bottom:8px}
+.tooltip-text{font-size:14px;color:#c8cdd6;line-height:1.6}
+.tooltip-example{font-size:13px;color:var(--muted);border-left:2px solid var(--orange-dim);padding-left:10px;margin-top:8px;font-style:italic;line-height:1.5}
+
+.wval{font-size:18px;line-height:1.8;color:var(--white);outline:none;border-bottom:1px dashed rgba(255,255,255,.15);width:100%;display:block}
+.wval:focus{border-bottom-color:var(--orange);background:rgba(232,0,13,.04);border-radius:2px;padding:3px 5px;margin:-3px -5px}
+.wval ul{padding-left:14px;list-style:none}
+.wval ul li{position:relative;padding-left:12px;margin-bottom:4px}
+.wval ul li::before{content:'›';position:absolute;left:0;color:var(--orange);font-weight:bold}
+.why{font-style:italic;color:var(--white);opacity:.85;border-left:3px solid var(--orange);padding-left:14px;font-size:18px;line-height:1.8;outline:none;border-bottom:1px dashed rgba(255,255,255,.1);width:100%;display:block}
+.why:focus{border-bottom-color:var(--orange)}
+
+/* PENDÊNCIAS */
+.pend-cell{background:rgba(232,0,13,.04);border-top:1px solid var(--orange-dim)!important}
+.pend-list{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:6px}
+.pend-item{display:flex;align-items:flex-start;gap:10px;padding:9px 12px;background:var(--card);border:1px solid var(--border);border-radius:3px;border-left:3px solid var(--warn)}
+.pend-item.done{border-left-color:var(--ok);opacity:.6}
+.pend-item input[type=checkbox]{accent-color:var(--ok);width:16px;height:16px;flex-shrink:0;margin-top:3px;cursor:pointer}
+.pend-txt{font-size:14px;color:#c8cdd6;flex:1;outline:none;border-bottom:1px dashed rgba(232,0,13,.2)}
+.pend-txt:focus{border-bottom-color:var(--orange)}
+.pend-item.done .pend-txt{text-decoration:line-through;color:var(--muted)}
+.btn-add-pend{margin-top:8px;display:flex;align-items:center;gap:8px;background:transparent;border:1px dashed var(--border);color:var(--muted);font-size:13px;font-family:var(--fb);padding:7px 12px;border-radius:3px;cursor:pointer;transition:all .2s;width:100%}
+.btn-add-pend:hover{border-color:var(--orange);color:var(--orange)}
+.btn-del-pend{background:transparent;border:none;color:var(--muted);cursor:pointer;font-size:15px;padding:0 4px;line-height:1;transition:color .2s;flex-shrink:0}
+.btn-del-pend:hover{color:var(--danger)}
+
+/* ADD CARD */
+.add-wrap{padding:0 40px 80px}
+.btn-add-card{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:18px;background:transparent;border:2px dashed var(--border);border-radius:4px;color:var(--muted);font-family:var(--fh);font-size:16px;font-weight:700;letter-spacing:2px;text-transform:uppercase;cursor:pointer;transition:all .2s}
+.btn-add-card:hover{border-color:var(--orange);color:var(--orange);background:rgba(232,0,13,.04)}
+
+/* MODALS */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:2000;align-items:center;justify-content:center;padding:20px}
+.overlay.show{display:flex}
+.modal{background:var(--card);border:1px solid var(--border);border-top:4px solid var(--orange);border-radius:8px;width:100%;max-width:660px;max-height:90vh;overflow-y:auto;padding:40px}
+.modal.sm{max-width:420px}
+.modal h2{font-family:var(--fh);font-size:30px;font-weight:800;text-transform:uppercase;margin-bottom:26px;letter-spacing:1px}
+.modal h2 span{color:var(--orange)}
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.fg{display:flex;flex-direction:column;gap:6px}
+.fg.full{grid-column:1/-1}
+.fg label{font-family:var(--fh);font-size:13px;letter-spacing:3px;text-transform:uppercase;color:var(--orange);margin-bottom:2px}
+.fg input,.fg textarea,.fg select{background:var(--surface);border:1px solid var(--border);border-radius:4px;color:var(--white);font-family:var(--fb);font-size:17px;padding:12px 16px;transition:border-color .2s;resize:vertical;line-height:1.5}
+.fg input:focus,.fg textarea:focus{outline:none;border-color:var(--orange)}
+.fg select option{background:var(--surface)}
+.radio-row{display:flex;gap:8px}
+.rbtn{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;border-radius:4px;cursor:pointer;border:2px solid var(--border);background:var(--surface);font-family:var(--fh);font-size:16px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);transition:all .2s}
+.rbtn input{display:none}
+.rbtn.sel-a{border-color:var(--danger);color:var(--danger);background:rgba(255,32,32,.1)}
+.rbtn.sel-m{border-color:var(--warn);color:var(--warn);background:rgba(255,184,0,.08)}
+.mactions{display:flex;gap:10px;margin-top:22px;justify-content:flex-end}
+.btn-cancel{background:transparent;border:1px solid var(--border);color:var(--muted);font-family:var(--fh);font-size:15px;letter-spacing:1px;text-transform:uppercase;padding:12px 24px;border-radius:4px;cursor:pointer;transition:all .2s}
+.btn-cancel:hover{border-color:var(--muted);color:var(--white)}
+.btn-ok{background:var(--orange);border:none;color:#fff;font-family:var(--fh);font-size:16px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:12px 28px;border-radius:4px;cursor:pointer;transition:background .2s}
+.btn-ok:hover{background:var(--orange2)}
+.error-msg{color:var(--danger);font-size:13px;margin-top:6px;display:none}
+.error-msg.show{display:block}
+
+/* EMOJI PICKER */
+.emoji-row{display:flex;gap:8px;flex-wrap:wrap}
+.emoji-opt{width:38px;height:38px;border:2px solid var(--border);border-radius:6px;background:var(--surface);cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;transition:all .2s}
+.emoji-opt:hover{border-color:var(--muted)}
+.emoji-opt.selected{border-color:var(--orange);background:var(--orange-dim)}
+
+/* PROJ CARD DELETE MENU */
+.pc-dropdown{position:absolute;top:48px;right:16px;background:#1a1e25;border:1px solid var(--border);border-radius:6px;padding:4px;z-index:100;display:none;min-width:140px;box-shadow:0 8px 24px rgba(0,0,0,.6)}
+.pc-dropdown.show{display:block}
+.pc-dd-item{padding:8px 12px;border-radius:4px;cursor:pointer;font-size:14px;color:var(--muted);transition:background .15s}
+.pc-dd-item:hover{background:var(--surface);color:var(--white)}
+.pc-dd-item.del{color:var(--danger)}
+.pc-dd-item.del:hover{background:rgba(255,32,32,.1)}
+
+footer{border-top:1px solid var(--border);padding:24px 40px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;background:var(--dark)}
+.fbrand{display:flex;align-items:center;gap:10px;font-family:var(--fh);font-size:16px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted)}
+.fbrand em{color:var(--orange);font-style:normal}
+.fcopy{font-size:12px;color:var(--muted)}
+@keyframes numflash{0%{color:#fff}100%{color:inherit}}
+.flash{animation:numflash .4s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.proj-card{animation:fadeIn .3s ease both}
+.action-card{animation:fadeIn .35s ease both}
+
+  /* ── TECNODRILL THEME OVERRIDES ── */
+  .proj-card:hover { border-color: var(--orange); border-top-color: var(--orange); box-shadow: 0 8px 32px rgba(232,0,13,.15); }
+  .proj-card.add-card:hover { background: rgba(232,0,13,.04); }
+  .action-card.alta { border-left-color: var(--danger); }
+  .action-card:hover { box-shadow: -4px 0 20px rgba(232,0,13,.12); }
+  header { background: #0a0a0d; }
+  .sync-bar { background: #0a0a0d; }
+  .dash-hero { background: linear-gradient(160deg, #0f0f12 0%, #12090a 100%); }
+  .proj-hero { background: linear-gradient(160deg, #0f0f12 0%, #12090a 100%); }
+  .logo { gap: 10px; }
+  .logo-name { letter-spacing: 3px; }
+  .logo:hover .logo-name { color: rgba(255,255,255,.85); }
+  .pc-icon { background: rgba(232,0,13,.15); border: 1px solid rgba(232,0,13,.2); }
+  .btn-ok { background: var(--orange); }
+  .btn-ok:hover { background: var(--orange2); }
+  .toggle-btn.open { background: var(--orange); }
+  .card.open .toggle-btn, .action-card.open .toggle-btn { background: var(--orange); border-color: var(--orange); }
+  ::-webkit-scrollbar { width: 6px; } 
+  ::-webkit-scrollbar-track { background: #0a0a0d; }
+  ::-webkit-scrollbar-thumb { background: #2a2f38; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--orange); }
+
+/* ── THEME TOGGLE BUTTON ── */
+.theme-toggle{background:transparent;border:1px solid var(--border);border-radius:20px;padding:5px 12px;cursor:pointer;font-size:16px;transition:all .2s;display:flex;align-items:center;gap:4px}
+.theme-toggle:hover{border-color:var(--orange)}
+body.dark .theme-icon-light{display:none}
+body.dark .theme-icon-dark{display:inline}
+body.light .theme-icon-dark{display:none}
+body.light .theme-icon-light{display:inline}
+
+/* ── TEMA CLARO ── */
+body.light{
+  --black:#e8e6e1;
+  --dark:#f0ede8;
+  --surface:#eae8e3;
+  --card:#FAF8F5;
+  --border:#d0cdc7;
+  --white:#111215;
+  --muted:#5a5854;
+}
+body.light header{background:#f0ede8;box-shadow:0 2px 12px rgba(0,0,0,.08)}
+body.light .sync-bar{background:#ebe8e3;border-bottom:1px solid #d0cdc7}
+body.light .dash-hero{background:linear-gradient(160deg,#f0ede8 0%,#ebe0dc 100%)}
+body.light .proj-hero{background:linear-gradient(160deg,#f0ede8 0%,#ebe0dc 100%)}
+body.light .proj-card{background:#FAF8F5;box-shadow:0 2px 12px rgba(0,0,0,.06)}
+body.light .proj-card:hover{box-shadow:0 8px 32px rgba(232,0,13,.15)}
+body.light .action-card{background:#FAF8F5;box-shadow:0 1px 6px rgba(0,0,0,.06)}
+body.light .card-head{background:#ebe8e3}
+body.light .wcell{background:#eae8e3}
+body.light .picker-box{background:#FAF8F5;box-shadow:0 12px 40px rgba(0,0,0,.15)}
+body.light .pick-opt:hover{background:#f5f5f7}
+body.light .tooltip-box{background:#FAF8F5;box-shadow:0 12px 40px rgba(0,0,0,.15)}
+body.light .modal{background:#FAF8F5}
+body.light .fg input,body.light .fg textarea{background:#eae8e3;color:#111215;border-color:#c0bdb7}
+body.light .fg input:focus,.body.light .fg textarea:focus{border-color:var(--orange)}
+body.light .pend-item{background:#eae8e3}
+body.light .pend-cell{background:rgba(232,0,13,.03)}
+body.light footer{background:#ebe8e3}
+body.light ::-webkit-scrollbar-track{background:#e8e5e0}
+body.light ::-webkit-scrollbar-thumb{background:#d0d0d8}
+body.light .summary{background:#d8d5d0}
+body.light .sbox{background:#f0ede8}
+body.light .htag{background:#eae8e3}
+body.light .btn-back{background:#eae8e3}
+body.light .rbtn{background:#eae8e3;color:#5a5854}
+body.light .add-wrap .btn-add-card{color:#666870}
+body.light 
+body.dark 
+body.light .wval,.body.light .why{color:#333540}
+body.light .photo-card{background:#FAF8F5;box-shadow:0 2px 8px rgba(0,0,0,.08)}
+body.light #pk-status .picker-box,body.light #pk-prio .picker-box{background:#FAF8F5}
+
+
+
+body.light 
+body.dark  
+
+/* ── MELHORIAS VISUAIS GERAIS ── */
+
+body.light 
+body.dark  
+
+.wval:focus{border-bottom-color:var(--orange);background:rgba(232,0,13,.05);border-radius:2px;padding:3px 5px;margin:-3px -5px}
+.why:focus{border-bottom-color:var(--orange);opacity:1}
+
+body.light .wval{color:#111215}
+body.light .why{color:#333;opacity:1}
+body.light .wlabel{color:#111215}
+body.light .fg input,.fg textarea{color:#111215}
+body.light .fg input::placeholder,.body.light .fg textarea::placeholder{color:#999}
+
+.card-title{font-size:17px}
+body.light .card-title{color:#111215}
+body.dark  .card-title{color:#f4f4f4}
+
+.toggle-btn{background:var(--surface);color:var(--muted)}
+.action-card.open .toggle-btn{background:var(--orange);color:#fff;border-color:var(--orange)}
+
+.pend-txt{font-size:15px;color:var(--white)}
+body.light .pend-txt{color:#111215}
+
+.wcell{border:none}
+body.dark  .wcell{background:#16191e}
+body.light .wcell{background:#f8f8fa}
+body.dark  .pend-cell{background:#12151a}
+body.light .pend-cell{background:#f0f0f5}
+
+.fg input::placeholder,.fg textarea::placeholder{color:var(--muted);font-size:16px}
+
+
+/* ── NAV PROJETO ── */
+.proj-nav{display:none;align-items:center;gap:4px}
+.btn-proj-nav{font-family:var(--fh);font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);background:transparent;border:1px solid var(--border);padding:5px 13px;border-radius:3px;cursor:pointer;transition:all .2s;white-space:nowrap;display:flex;align-items:center;gap:6px}
+.btn-proj-nav:hover{border-color:var(--orange);color:var(--orange)}
+.btn-proj-nav:disabled{opacity:.3;cursor:not-allowed;pointer-events:none}
+.nav-proj-label{font-family:var(--fh);font-size:12px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);padding:0 6px;max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.card-num{font-family:var(--fh);font-size:26px;font-weight:800;color:#E8000D;min-width:34px;line-height:1}
+
+/* Badges tema escuro */
+body.dark .s-pending{background:rgba(255,32,32,.08);color:var(--danger);border:2px solid var(--danger)}
+body.dark .s-ongoing{background:rgba(255,184,0,.08);color:var(--warn);border:2px solid var(--warn)}
+body.dark .s-done{background:rgba(0,209,102,.08);color:var(--ok);border:2px solid var(--ok)}
+body.dark .p-alta{background:rgba(255,32,32,.08);color:var(--danger);border:2px solid var(--danger)}
+body.dark .p-media{background:rgba(255,184,0,.08);color:var(--warn);border:2px solid var(--warn)}
+/* Date input no tema claro */
+body.light input[type="date"]{color-scheme:light}
+body.dark  input[type="date"]{color-scheme:dark}
+/* Fonte maior lista de itens */
+.wval ul li{font-size:17px;margin-bottom:6px}
+
+/* Badge prazo */
+#deadline-badge{transition:border-color .3s,color .3s}
+
+/* Wlabel seta */
+body.light .wlabel::before{color:var(--orange)}
+body.light .wlabel{color:#111215}
+/* Date input tema claro */
+body.light input[type="date"]#proj-deadline-input{color:#111215;color-scheme:light}
+body.light input[type="date"]#proj-deadline-input::placeholder{color:#999}
+
+.action-card.done-card{display:none}
+.action-card.done-card.show-done{display:block;opacity:.55}
+.action-card.done-card.show-done .card-head{text-decoration:line-through;text-decoration-color:var(--ok)}
+#btn-show-done.active{border-color:var(--ok);color:var(--ok)}
+</style>
+</head>
+<body>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script>
+firebase.initializeApp({
+  apiKey:"AIzaSyDoIaQx5_njGyKjGbgmmBwD4-SWnXSW38Q",
+  authDomain:"wh2-tecnodrill.firebaseapp.com",
+  databaseURL:"https://wh2-tecnodrill-default-rtdb.firebaseio.com",
+  projectId:"wh2-tecnodrill",
+  storageBucket:"wh2-tecnodrill.firebasestorage.app",
+  messagingSenderId:"836062396002",
+  appId:"1:836062396002:web:3f461a33c926155f825b3b"
+});
+const db = firebase.database();
+const CREATE_PASSWORD = 'tecnodrill2026';
+</script>
+
+<!-- SYNC -->
+<div class="sync-bar">
+  <div class="sync-dot" id="sync-dot"></div>
+  <span id="sync-label">Conectando...</span>
+</div>
+
+<!-- HEADER -->
+<header>
+  <div class="logo" onclick="goHome()">
+    <img src="data:image/png;base64,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" alt="Tecnodrill" style="height:44px;width:44px;object-fit:contain;flex-shrink:0;">
+    <div class="logo-name" style="font-family:var(--fh);font-weight:700;font-size:26px;letter-spacing:2px;text-transform:uppercase;color:var(--white)">TECNO<span style="color:var(--orange)">DRILL</span></div>
+  </div>
+  <div class="header-right">
+    <div class="breadcrumb" id="breadcrumb" style="display:none">
+      <span>Projetos</span><span class="sep">/</span><span class="proj-name" id="bc-name"></span>
+    </div>
+    <button class="btn-back" id="btn-back" onclick="goHome()">← Projetos</button>
+    <div class="proj-nav" id="proj-nav">
+      <button class="btn-proj-nav" id="btn-prev-proj" onclick="navigateProject(-1)" title="Projeto anterior">&#8592;</button>
+      <span class="nav-proj-label" id="nav-proj-label"></span>
+      <button class="btn-proj-nav" id="btn-next-proj" onclick="navigateProject(1)" title="Próximo projeto">&#8594;</button>
+    </div>
+    <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="Alternar tema">
+      <span class="theme-icon-dark">🌙</span>
+      <span class="theme-icon-light">☀️</span>
+    </button>
+    <div class="htag" id="htag">Gestão de Projetos</div>
+  </div>
+</header>
+
+<!-- ══════════ DASHBOARD ══════════ -->
+<div id="screen-dashboard">
+  <div class="dash-hero">
+    <div class="kicker">Tecnodrill · Sistema de Gestão</div>
+    <h1>Planos de<br><em>Ação 5W2H</em></h1>
+    <p>Selecione um projeto para visualizar e editar o plano de ação em tempo real.</p>
+  </div>
+  <div class="dash-body">
+    <div class="dash-section-title">Projetos ativos</div>
+    <div class="proj-grid" id="proj-grid">
+      <div class="proj-card add-card" onclick="openNewProject()">
+        <div class="add-icon">+</div>
+        <span>Novo projeto</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ PROJECT ══════════ -->
+<div id="screen-project" style="display:none">
+  <div class="proj-hero">
+
+    <h1 id="proj-title-display">—</h1>
+    <div class="proj-desc" id="proj-desc-display"></div>
+    <div class="hero-meta" id="proj-meta"></div>
+    <div id="deadline-badge" style="display:none;align-items:center;gap:10px;margin-top:16px;padding:10px 18px;border:2px solid #ccc;border-radius:6px;background:rgba(0,0,0,.15);width:fit-content;font-family:var(--fh);font-weight:700;letter-spacing:1px;text-transform:uppercase;font-size:15px">
+      <span class="dl-icon" style="font-size:18px"></span>
+      <div style="display:flex;flex-direction:column;gap:2px">
+        <span class="dl-label"></span>
+        <span class="dl-date" style="font-size:12px;opacity:.7;letter-spacing:2px"></span>
+      </div>
+    </div>
+    <div class="hint" style="margin-top:12px">Clique em qualquer texto para editar · Passe o mouse no ícone de info para instruções de preenchimento</div>
+  </div>
+
+  <div class="summary">
+    <div class="sbox"><div class="snum" id="s-total" style="color:var(--orange)">--</div><div class="slabel">Ações</div></div>
+    <div class="sbox"><div class="snum" id="s-alta"  style="color:var(--danger)">--</div><div class="slabel">Alta</div></div>
+    <div class="sbox"><div class="snum" id="s-media" style="color:var(--warn)">--</div><div class="slabel">Média</div></div>
+    <div class="sbox"><div class="snum" id="s-ongoing" style="color:var(--warn)">--</div><div class="slabel">Em andamento</div></div>
+    <div class="sbox"><div class="snum" id="s-pending" style="color:var(--danger)">--</div><div class="slabel">Pendente</div></div>
+    <div class="sbox"><div class="snum" id="s-done"  style="color:var(--ok)">--</div><div class="slabel">Concluída</div></div>
+  </div>
+
+  <div class="sec-title">
+    <div><h2>Ações detalhadas</h2><h3>Clique para expandir</h3></div>
+    <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+      <div class="legenda">
+        <div class="leg"><div class="leg-dot" style="background:var(--danger)"></div>Alta</div>
+        <div class="leg"><div class="leg-dot" style="background:var(--warn)"></div>Média</div>
+        <div class="leg"><div class="leg-dot" style="background:var(--ok)"></div>Concluída</div>
+      </div>
+      <button id="btn-show-done" onclick="toggleDone()" style="font-family:var(--fh);font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase;background:transparent;border:1px solid var(--border);color:var(--muted);padding:6px 14px;border-radius:3px;cursor:pointer;transition:all .2s">
+        Ver concluídas
+      </button>
+    </div>
+  </div>
+
+  <div class="cards" id="cards"></div>
+  <div class="add-wrap">
+    <button class="btn-add-card" id="btn-new-card">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Adicionar nova ação
+    </button>
+  </div>
+</div>
+
+<!-- FOOTER -->
+
+
+<!-- PICKER STATUS -->
+<div class="picker-wrap" id="pk-status">
+  <div class="picker-box">
+    <div class="picker-head">Status</div>
+    <button class="pick-opt" data-val="pending"><span class="pick-dot" style="background:var(--danger)"></span><span class="pick-label" style="color:var(--danger)">Pendente</span><span class="pick-check">✓</span></button>
+    <button class="pick-opt" data-val="ongoing"><span class="pick-dot" style="background:var(--warn)"></span><span class="pick-label" style="color:var(--warn)">Em andamento</span><span class="pick-check">✓</span></button>
+    <button class="pick-opt" data-val="done"><span class="pick-dot" style="background:var(--ok)"></span><span class="pick-label" style="color:var(--ok)">Concluída</span><span class="pick-check">✓</span></button>
+  </div>
+</div>
+<div class="picker-wrap" id="pk-prio">
+  <div class="picker-box">
+    <div class="picker-head">Prioridade</div>
+    <button class="pick-opt" data-val="alta"><span class="pick-dot" style="background:var(--danger)"></span><span class="pick-label" style="color:var(--danger)">Alta</span><span class="pick-check">✓</span></button>
+    <button class="pick-opt" data-val="media"><span class="pick-dot" style="background:var(--warn)"></span><span class="pick-label" style="color:var(--warn)">Média</span><span class="pick-check">✓</span></button>
+  </div>
+</div>
+
+<!-- TOOLTIP -->
+<div class="tooltip-overlay" id="tooltip-overlay"></div>
+<div class="tooltip-box" id="tooltip-box" style="display:none">
+  <div class="tooltip-title" id="tt-title"></div>
+  <div class="tooltip-text" id="tt-text"></div>
+  <div class="tooltip-example" id="tt-example"></div>
+</div>
+
+<!-- MODAL: NOVO PROJETO (com senha) -->
+<div class="overlay" id="overlay-newproj">
+  <div class="modal sm">
+    <h2>Novo <span>Projeto</span></h2>
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div class="fg full">
+        <label>Senha de acesso</label>
+        <input type="password" id="np-senha" placeholder="Digite a senha para criar projetos">
+        <div class="error-msg" id="np-erro">Senha incorreta. Tente novamente.</div>
+      </div>
+      <div class="fg full" id="np-fields" style="display:none;flex-direction:column;gap:14px">
+        <div class="fg">
+          <label>Nome do projeto</label>
+          <input type="text" id="np-nome" placeholder="Ex: Trensurb POA">
+        </div>
+        <div class="fg">
+          <label>Descrição</label>
+          <input type="text" id="np-desc" placeholder="Ex: Retrofitting Torno de Rodeiros">
+        </div>
+        <div class="fg">
+          <label>Cliente</label>
+          <input type="text" id="np-cliente" placeholder="Ex: Trensurb">
+        </div>
+        <div class="fg">
+          <label>Ícone do projeto</label>
+          <div class="emoji-row" id="emoji-row">
+            <div class="emoji-opt selected" data-emoji="🔧">🔧</div>
+            <div class="emoji-opt" data-emoji="⚙️">⚙️</div>
+            <div class="emoji-opt" data-emoji="🏗️">🏗️</div>
+            <div class="emoji-opt" data-emoji="🚂">🚂</div>
+            <div class="emoji-opt" data-emoji="🏭">🏭</div>
+            <div class="emoji-opt" data-emoji="📋">📋</div>
+            <div class="emoji-opt" data-emoji="🎯">🎯</div>
+            <div class="emoji-opt" data-emoji="🔩">🔩</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="mactions">
+      <button class="btn-cancel" onclick="closeModal('overlay-newproj')">Cancelar</button>
+      <button class="btn-ok" id="np-btn">Verificar senha</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: NOVA AÇÃO -->
+<div class="overlay" id="overlay-newcard">
+  <div class="modal">
+    <h2>Nova <span>Ação</span></h2>
+    <div class="fgrid">
+      <div class="fg full"><label>O quê?</label><input type="text" id="f-what" placeholder="Descreva a ação a ser realizada..."></div>
+      <div class="fg full"><label>Por quê?</label><textarea id="f-why" rows="2" placeholder="Qual o motivo / justificativa desta ação?"></textarea></div>
+      <div class="fg"><label>Quem?</label><input type="text" id="f-who" placeholder="Responsável(eis)"></div>
+      <div class="fg"><label>Quando?</label><input type="date" id="f-when" style="color-scheme:dark"></div>
+      <div class="fg"><label>Onde?</label><input type="text" id="f-where" placeholder="Local de execução"></div>
+      <div class="fg"><label>Prioridade</label>
+        <div class="radio-row">
+          <label class="rbtn sel-a" id="rb-a"><input type="radio" name="mprio" value="alta" checked> 🔴 Alta</label>
+          <label class="rbtn" id="rb-m"><input type="radio" name="mprio" value="media"> 🟡 Média</label>
+        </div>
+      </div>
+      <div class="fg full"><label>Como? (um passo por linha)</label><textarea id="f-how" rows="3" placeholder="Passo 1&#10;Passo 2&#10;Passo 3..."></textarea></div>
+    </div>
+    <div class="mactions">
+      <button class="btn-cancel" onclick="closeModal('overlay-newcard')">Cancelar</button>
+      <button class="btn-ok" id="btn-card-ok">Criar Ação</button>
+    </div>
+  </div>
+</div>
+
+<script>
+
+// ── THEME ─────────────────────────────────────────────────
+function applyTheme(theme) {
+  document.body.classList.remove('light','dark');
+  document.body.classList.add(theme);
+  localStorage.setItem('td-theme', theme);
+}
+function toggleTheme() {
+  const current = document.body.classList.contains('light') ? 'light' : 'dark';
+  applyTheme(current === 'dark' ? 'light' : 'dark');
+}
+// Aplicar tema salvo ao carregar
+(function() {
+  const saved = localStorage.getItem('td-theme') || 'dark';
+  applyTheme(saved);
+})();
+
+
+// ── NAVEGAÇÃO ENTRE PROJETOS ──────────────────────────────
+let projOrder = []; // IDs em ordem
+
+db.ref('projects').on('value', snap => {
+  const data = snap.val() || {};
+  projOrder = Object.values(data)
+    .sort((a,b) => (a.createdAt||0) - (b.createdAt||0))
+    .map(p => p.id);
+});
+
+function updateProjNav(currentId) {
+  const idx = projOrder.indexOf(currentId);
+  const total = projOrder.length;
+  const prevBtn = document.getElementById('btn-prev-proj');
+  const nextBtn = document.getElementById('btn-next-proj');
+  const label   = document.getElementById('nav-proj-label');
+  prevBtn.disabled = idx <= 0;
+  nextBtn.disabled = idx >= total - 1;
+  label.textContent = (idx + 1) + ' / ' + total;
+  label.title = 'Projeto ' + (idx+1) + ' de ' + total;
+}
+
+function navigateProject(dir) {
+  if (!currentProjectId) return;
+  const idx = projOrder.indexOf(currentProjectId);
+  const nextIdx = idx + dir;
+  if (nextIdx < 0 || nextIdx >= projOrder.length) return;
+  const nextId = projOrder[nextIdx];
+  db.ref('projects/' + nextId).once('value', snap => {
+    const proj = snap.val();
+    if (proj) openProject(nextId, proj);
+  });
+}
+
+
+// ── MOSTRAR/OCULTAR CONCLUÍDAS ────────────────────────────
+let showingDone = false;
+function toggleDone() {
+  showingDone = !showingDone;
+  document.querySelectorAll('.action-card.done-card').forEach(c => {
+    c.style.display = showingDone ? 'block' : 'none';
+  });
+  const btn = document.getElementById('btn-show-done');
+  if (btn) {
+    btn.textContent = showingDone ? 'Ocultar concluídas' : 'Ver concluídas';
+    btn.classList.toggle('active', showingDone);
+  }
+  updateStats();
+}
+
+// ── TOOLTIP CONFIG ─────────────────────────────────────────
+const TIPS = {
+  PQ:   {title:'Por quê?',  text:'Explique o motivo ou a causa raiz que justifica esta ação. Responda: qual problema isso resolve?', example:'Ex: "O drive está com parâmetro incorreto causando sobrecarga crônica no motor."'},
+  QUEM: {title:'Quem?',    text:'Liste os responsáveis pela execução da ação. Um responsável por linha para facilitar a leitura.', example:'Ex: "Thales Bender\nJefferson Costa\nESA (Lipi)"'},
+  QUANDO:{title:'Quando?', text:'Defina o prazo de conclusão desta ação. Seja específico com datas.', example:'Ex: "Até 26/05/2026" ou "Imediato — próxima usinagem"'},
+  ONDE: {title:'Onde?',  text:'Informe o local físico ou sistema onde a ação será executada.', example:'Ex: "Torno Subterrâneo — Trensurb POA" ou "Remoto (ESA Itália)"'},
+  COMO: {title:'Como?',    text:'Descreva os passos de execução em ordem. Um passo por linha. Seja objetivo e sequencial.', example:'Ex: "1. Verificar parâmetros do drive\n2. Consultar datasheet do motor\n3. Ajustar com ESA remotamente"'},
+  "!":  {title:'Pendências',    text:'Liste itens que ainda precisam ser resolvidos ou verificados nesta ação. Marque o checkbox quando concluído.', example:'Ex: "Aguardar resposta da ESA sobre corrente nominal"'}
+};
+
+let tooltipTimeout;
+function showTooltip(btn, key) {
+  const tip = TIPS[key]; if(!tip) return;
+  const box = document.getElementById('tooltip-box');
+  document.getElementById('tt-title').textContent = tip.title;
+  document.getElementById('tt-text').textContent  = tip.text;
+  document.getElementById('tt-example').textContent = tip.example;
+  const r = btn.getBoundingClientRect();
+  box.style.display = 'block';
+  const bw = box.offsetWidth || 280;
+  let left = r.left - bw - 10;
+  if (left < 8) left = r.right + 10;
+  let top = r.top - 8;
+  if (top + 160 > window.innerHeight) top = window.innerHeight - 170;
+  box.style.left = left + 'px';
+  box.style.top  = top  + 'px';
+}
+function hideTooltip() {
+  document.getElementById('tooltip-box').style.display = 'none';
+}
+
+// ── STATE ──────────────────────────────────────────────────
+const STATUS_CFG = {
+  pending:{cls:'s-pending',label:'Pendente'},
+  ongoing:{cls:'s-ongoing',label:'Em andamento'},
+  done:   {cls:'s-done',   label:'Concluída'}
+};
+const PRIO_CFG = {
+  alta: {cls:'p-alta', cardCls:'alta', label:'Alta'},
+  media:{cls:'p-media',cardCls:'media',label:'Média'}
+};
+
+let currentProjectId = null;
+let cardsListener    = null;
+let isRemoteUpdate   = false;
+let saveTimeout      = null;
+let selectedEmoji    = '🔧';
+let npUnlocked       = false;
+
+// ── FIREBASE SYNC ──────────────────────────────────────────
+db.ref('.info/connected').on('value', s => {
+  const on = s.val();
+  document.getElementById('sync-dot').className = 'sync-dot' + (on?' online':'');
+  document.getElementById('sync-label').textContent = on ? 'Sincronizado em tempo real' : 'Reconectando...';
+});
+
+function setSaving() {
+  document.getElementById('sync-dot').className = 'sync-dot saving';
+  document.getElementById('sync-label').textContent = 'Salvando...';
+  clearTimeout(saveTimeout);
+  saveTimeout = setTimeout(() => {
+    document.getElementById('sync-dot').className = 'sync-dot online';
+    document.getElementById('sync-label').textContent = 'Sincronizado em tempo real';
+  }, 900);
+}
+
+// ── DASHBOARD ──────────────────────────────────────────────
+db.ref('projects').on('value', snap => {
+  const data = snap.val() || {};
+  renderDashboard(data);
+});
+
+function renderDashboard(data) {
+  const grid = document.getElementById('proj-grid');
+  // Keep add button, rebuild rest
+  grid.innerHTML = '';
+  Object.entries(data).sort((a,b)=>(b[1].createdAt||0)-(a[1].createdAt||0)).forEach(([id, proj]) => {
+    const card = buildProjCard(id, proj);
+    grid.appendChild(card);
+  });
+  // Add button last
+  const addBtn = document.createElement('div');
+  addBtn.className = 'proj-card add-card';
+  addBtn.onclick = openNewProject;
+  addBtn.innerHTML = '<div class="add-icon">+</div><span>Novo projeto</span>';
+  grid.appendChild(addBtn);
+}
+
+function buildProjCard(id, proj) {
+  // Count stats
+  const cards = proj.cards ? Object.values(proj.cards) : [];
+  const total = cards.length;
+  const done  = cards.filter(c => c.status==='done').length;
+  const pend  = cards.filter(c => c.status==='pending').length;
+
+  const div = document.createElement('div');
+  div.className = 'proj-card';
+  div.style.animationDelay = '0.05s';
+  div.innerHTML = `
+    <div class="pc-header">
+  
+      <button class="pc-menu" onclick="event.stopPropagation();toggleProjMenu('${id}')">⋮</button>
+      <div class="pc-dropdown" id="pm-${id}">
+        <div class="pc-dd-item del" onclick="deleteProject('${id}')">Excluir projeto</div>
+      </div>
+    </div>
+    <div class="pc-name">${proj.name||'Sem nome'}</div>
+    <div class="pc-desc">${proj.desc||''}</div>
+    <div class="pc-stats">
+      <div class="pc-stat"><span class="dot" style="background:var(--orange)"></span>${total} ações</div>
+      <div class="pc-stat"><span class="dot" style="background:var(--ok)"></span>${done} concluídas</div>
+      <div class="pc-stat"><span class="dot" style="background:var(--danger)"></span>${pend} pendentes</div>
+    </div>
+    <div class="pc-date">Cliente: ${proj.client||'—'}</div>`;
+  div.addEventListener('click', e => {
+    if (e.target.closest('.pc-menu,.pc-dropdown')) return;
+    openProject(id, proj);
+  });
+  return div;
+}
+
+function toggleProjMenu(id) {
+  document.querySelectorAll('.pc-dropdown').forEach(d => { if(d.id!=='pm-'+id) d.classList.remove('show'); });
+  document.getElementById('pm-'+id).classList.toggle('show');
+}
+document.addEventListener('click', e => {
+  if (!e.target.closest('.pc-menu,.pc-dropdown')) {
+    document.querySelectorAll('.pc-dropdown').forEach(d => d.classList.remove('show'));
+  }
+});
+
+function deleteProject(id) {
+  if (!confirm('Excluir este projeto e todas as suas ações? Esta ação não pode ser desfeita.')) return;
+  db.ref('projects/'+id).remove();
+  if (currentProjectId === id) goHome();
+}
+
+// ── NAVIGATION ─────────────────────────────────────────────
+function goHome() {
+  if (cardsListener) { try { db.ref('projects/'+currentProjectId+'/cards').off('value', cardsListener); } catch(e){} cardsListener=null; }
+  if (window._projListener) { try { window._projListener(); } catch(e){} window._projListener=null; }
+  if (window._deadlineInterval) { clearInterval(window._deadlineInterval); window._deadlineInterval=null; }
+  currentProjectId = null;
+  document.getElementById('screen-dashboard').style.display = 'block';
+  document.getElementById('screen-project').style.display   = 'none';
+  document.getElementById('btn-back').style.display         = 'none';
+  document.getElementById('breadcrumb').style.display       = 'none';
+  document.getElementById('proj-nav').style.display         = 'none';
+}
+
+function saveProjectMeta() {
+  if (!currentProjectId) return;
+  const name     = document.getElementById('proj-title-display').textContent.trim();
+  const desc     = document.getElementById('proj-desc-display').textContent.trim();
+  const client   = document.getElementById('proj-client-display').textContent.trim();
+  const deadline = document.getElementById('proj-deadline-input')?.value || '';
+  setSaving();
+  db.ref('projects/' + currentProjectId).update({ name, desc, client, deadline });
+  document.getElementById('bc-name').textContent = name;
+
+  renderDeadlineBadge(deadline);
+}
+
+function renderDeadlineBadge(deadline) {
+  const badge = document.getElementById('deadline-badge');
+  if (!badge) return;
+  if (!deadline) { badge.style.display='none'; return; }
+  const today = new Date(); today.setHours(0,0,0,0);
+  const due   = new Date(deadline + 'T00:00:00');
+  const diff  = Math.round((due - today) / 86400000);
+  let color, icon, label;
+  let bg, border, textColor;
+  if (diff < 0)       { bg='#E8000D'; border='#C20009'; textColor='#fff'; icon='!'; label='Atrasado '+Math.abs(diff)+' dia'+(Math.abs(diff)>1?'s':''); }
+  else if (diff === 0){ bg='#E8000D'; border='#C20009'; textColor='#fff'; icon='!'; label='Entrega hoje!'; }
+  else if (diff <= 7) { bg='#FFB800'; border='#E0A000'; textColor='#3a2800'; icon='›'; label=diff+' dia'+(diff>1?'s':'')+' restante'+(diff>1?'s':''); }
+  else if (diff <= 30){ bg='#FFB800'; border='#E0A000'; textColor='#3a2800'; icon='›'; label=diff+' dias restantes'; }
+  else                { bg='#00C060'; border='#00A050'; textColor='#fff'; icon='✓'; label=diff+' dias restantes'; }
+  const isLight = document.body.classList.contains('light');
+  badge.style.display     = 'flex';
+  badge.style.background  = isLight ? bg : 'rgba(0,0,0,.15)';
+  badge.style.borderColor = isLight ? border : bg;
+  badge.style.color       = isLight ? textColor : bg;
+  badge.querySelector('.dl-icon').textContent  = icon;
+  badge.querySelector('.dl-label').textContent = label;
+  // formatar data BR
+  const [y,m,d] = deadline.split('-');
+  badge.querySelector('.dl-date').textContent = d+'/'+m+'/'+y;
+}
+
+function openProject(id, proj) {
+  currentProjectId = id;
+  document.getElementById('screen-dashboard').style.display = 'none';
+  document.getElementById('screen-project').style.display   = 'block';
+  document.getElementById('btn-back').style.display         = 'flex';
+  document.getElementById('breadcrumb').style.display       = 'flex';
+  document.getElementById('proj-nav').style.display         = 'flex';
+  updateProjNav(id);
+  document.getElementById('bc-name').textContent = proj.name||'Projeto';
+
+
+
+  // Título editável
+  const titleEl = document.getElementById('proj-title-display');
+  titleEl.textContent = proj.name||'Projeto';
+  titleEl.contentEditable = 'true';
+  titleEl.style.borderBottom = '2px dashed rgba(232,0,13,.4)';
+  titleEl.style.outline = 'none';
+  titleEl.style.cursor  = 'text';
+  titleEl.onblur = saveProjectMeta;
+
+  // Descrição editável
+  const descEl = document.getElementById('proj-desc-display');
+  descEl.textContent = proj.desc||'';
+  descEl.contentEditable = 'true';
+  descEl.style.borderBottom = '1px dashed rgba(232,0,13,.3)';
+  descEl.style.outline = 'none';
+  descEl.style.cursor  = 'text';
+  descEl.onblur = saveProjectMeta;
+
+  // Meta com cliente editável
+  const metaEl = document.getElementById('proj-meta');
+  metaEl.innerHTML = `
+    <div class="mi">
+      <label>Cliente</label>
+      <span id="proj-client-display" contenteditable="true"
+        style="outline:none;border-bottom:1px dashed rgba(232,0,13,.3);cursor:text;min-width:60px;display:inline-block"
+      >${proj.client||'A definir'}</span>
+    </div>
+    <div class="mi">
+      <label>Data de entrega</label>
+      <input type="date" id="proj-deadline-input" value="${proj.deadline||''}"
+        style="background:transparent;border:none;border-bottom:2px dashed rgba(232,0,13,.4);color:var(--white);font-family:var(--fh);font-size:18px;font-weight:700;cursor:pointer;outline:none;padding:2px 4px;color-scheme:dark;min-width:140px">
+    </div>`;
+
+  document.getElementById('proj-client-display').onblur = saveProjectMeta;
+  const dlInputEl = document.getElementById('proj-deadline-input');
+  dlInputEl.addEventListener('change', function() {
+    const val = this.value;
+    renderDeadlineBadge(val);
+    if (currentProjectId) {
+      setSaving();
+      db.ref('projects/' + currentProjectId).update({ deadline: val });
+    }
+  });
+  renderDeadlineBadge(proj.deadline||'');
+
+  document.getElementById('cards').innerHTML = '';
+  document.getElementById('gallery-section').style.display = 'block';
+
+  // Listener fotos
+  db.ref('projects/'+id+'/photos').on('value', snap => renderGallery(snap.val() || []));
+
+  // Listener projeto (deadline, nome, etc)
+  if (window._projListener) { try { window._projListener(); } catch(e){} }
+  window._projListener = db.ref('projects/'+id+'/deadline').on('value', snap => {
+    const deadline = snap.val() || '';
+    renderDeadlineBadge(deadline);
+    const dlInput = document.getElementById('proj-deadline-input');
+    if (dlInput && document.activeElement !== dlInput) dlInput.value = deadline;
+  });
+
+  // Recalcular badge a cada minuto (para virada de dia)
+  if (window._deadlineInterval) clearInterval(window._deadlineInterval);
+  window._deadlineInterval = setInterval(() => {
+    const dlInput = document.getElementById('proj-deadline-input');
+    if (dlInput) renderDeadlineBadge(dlInput.value);
+  }, 60000);
+
+  // Listener cards — desligar anterior se existir
+  if (cardsListener) {
+    try { db.ref('projects/'+id+'/cards').off('value', cardsListener); } catch(e){}
+    try { cardsListener(); } catch(e){}
+    cardsListener = null;
+  }
+  cardsListener = db.ref('projects/'+id+'/cards').on('value', snap => {
+    isRemoteUpdate = true;
+    const data = snap.val();
+    if (data) {
+      renderCards(data);
+    } else {
+      document.getElementById('cards').innerHTML = '';
+    }
+    updateStats();
+    isRemoteUpdate = false;
+  });
+}
+
+// ── RENDER CARDS ───────────────────────────────────────────
+function renderCards(data) {
+  const container = document.getElementById('cards');
+  const ids = Object.keys(data).sort();
+  const existingIds = [...container.querySelectorAll('.action-card')].map(c=>c.dataset.cardId);
+
+  // Remove deleted
+  existingIds.forEach(eid => { if(!data[eid]) document.getElementById('ac-'+eid)?.remove(); });
+
+  ids.forEach((id,idx) => {
+    const d = data[id];
+    let card = document.getElementById('ac-'+id);
+    if (!card) {
+      card = buildActionCard(d, idx+1);
+      if(d.status==='done') card.classList.add('done-card');
+      container.appendChild(card);
+      wireActionCard(card, id);
+    } else {
+      updateActionCard(card, d, idx+1);
+      if(d.status==='done') card.classList.add('done-card');
+      else card.classList.remove('done-card','show-done');
+    }
+    // Aplicar visibilidade atual
+    if(card.classList.contains('done-card')) {
+      card.style.display = showingDone ? 'block' : 'none';
+    } else {
+      card.style.display = 'block';
+    }
+  });
+}
+
+function buildActionCard(d, num) {
+  const pc = PRIO_CFG[d.prio]||PRIO_CFG.alta;
+  const sc = STATUS_CFG[d.status]||STATUS_CFG.pending;
+  const howItems = (d.how||'').split('\n').filter(l=>l.trim()).map(l=>`<li>${esc(l)}</li>`).join('');
+  const pendsHtml = (d.pends||[]).map(p=>pendHTML(p)).join('');
+
+  const div = document.createElement('div');
+  div.className = `action-card ${pc.cardCls}${d.open?' open':''}`;
+  div.id = 'ac-'+d.id;
+  div.dataset.cardId = d.id;
+  div.innerHTML = `
+    <div class="card-head">
+      <div class="card-num">${String(num).padStart(2,'0')}</div>
+      <div class="card-title" contenteditable="true">${esc(d.title||'')}</div>
+      <div class="card-controls">
+        <button class="btn-status ${sc.cls}" data-val="${d.status}">${sc.label}</button>
+        <button class="btn-prio ${pc.cls}" data-val="${d.prio}">${pc.label}</button>
+        <div class="toggle-btn">+</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="w2h-grid">
+        <div class="wcell s2">
+          <div class="wlabel" data-w="PQ">Por quê?<button class="info-btn" data-tip="PQ">i</button></div>
+          <div class="why" contenteditable="true">${esc(d.why||'')}</div>
+        </div>
+        <div class="wcell">
+          <div class="wlabel" data-w="QUEM">Quem?<button class="info-btn" data-tip="QUEM">i</button></div>
+          <div class="wval" contenteditable="true">${esc(d.who||'')}</div>
+        </div>
+        <div class="wcell">
+          <div class="wlabel" data-w="QUANDO">Quando?<button class="info-btn" data-tip="QUANDO">i</button></div>
+          <div class="wval" contenteditable="true">${esc(d.when||'')}</div>
+        </div>
+        <div class="wcell">
+          <div class="wlabel" data-w="ONDE">Onde?<button class="info-btn" data-tip="ONDE">i</button></div>
+          <div class="wval" contenteditable="true">${esc(d.where||'')}</div>
+        </div>
+        <div class="wcell s2">
+          <div class="wlabel" data-w="COMO">Como?<button class="info-btn" data-tip="COMO">i</button></div>
+          <div class="wval how-val" contenteditable="true"><ul>${howItems}</ul></div>
+        </div>
+        <div class="wcell full pend-cell">
+          <div class="wlabel" data-w="!" style="color:var(--orange2)">Pendências<button class="info-btn" data-tip="!">i</button></div>
+          <ul class="pend-list">${pendsHtml}</ul>
+          <button class="btn-add-pend">+ Adicionar pendência</button>
+        </div>
+      </div>
+    </div>`;
+  return div;
+}
+
+function updateActionCard(card, d, num) {
+  const pc = PRIO_CFG[d.prio]||PRIO_CFG.alta;
+  const sc = STATUS_CFG[d.status]||STATUS_CFG.pending;
+  card.className = `action-card ${pc.cardCls}${d.open?' open':''}`;
+  card.querySelector('.card-num').textContent = String(num).padStart(2,'0');
+  const t = card.querySelector('.card-title');
+  if (document.activeElement!==t) t.textContent=d.title||'';
+  const bs = card.querySelector('.btn-status');
+  bs.className='btn-status '+sc.cls; bs.textContent=sc.label; bs.dataset.val=d.status;
+  const bp = card.querySelector('.btn-prio');
+  bp.className='btn-prio '+pc.cls; bp.textContent=pc.label; bp.dataset.val=d.prio;
+  const why = card.querySelector('.why');
+  if(document.activeElement!==why) why.textContent=d.why||'';
+  const wvals = card.querySelectorAll('.wval[contenteditable]');
+  const fields = ['who','when','where'];
+  fields.forEach((f,i) => { if(wvals[i]&&document.activeElement!==wvals[i]) wvals[i].textContent=d[f]||''; });
+  const howEl = card.querySelector('.how-val');
+  if(howEl&&document.activeElement!==howEl){
+    const items=(d.how||'').split('\n').filter(l=>l.trim()).map(l=>`<li>${esc(l)}</li>`).join('');
+    howEl.innerHTML=`<ul>${items}</ul>`;
+  }
+  // pends
+  const pl = card.querySelector('.pend-list');
+  if(pl){
+    const pends=d.pends||[];
+    pl.querySelectorAll('.pend-item').forEach(li=>{if(!pends.find(p=>p.id===li.dataset.pendId))li.remove();});
+    pends.forEach(p=>{
+      let li=pl.querySelector(`[data-pend-id="${p.id}"]`);
+      if(!li){pl.insertAdjacentHTML('beforeend',pendHTML(p));li=pl.querySelector(`[data-pend-id="${p.id}"]`);wirePendItem(li,card.dataset.cardId);}
+      else{const txt=li.querySelector('.pend-txt');if(document.activeElement!==txt)txt.textContent=p.text||'';const cb=li.querySelector('input[type=checkbox]');cb.checked=p.done||false;li.classList.toggle('done',p.done||false);}
+    });
+  }
+}
+
+function pendHTML(p) {
+  return `<li class="pend-item${p.done?' done':''}" data-pend-id="${p.id}">
+    <input type="checkbox"${p.done?' checked':''}><span class="pend-txt" contenteditable="true">${esc(p.text||'')}</span>
+    <button class="btn-del-pend">×</button></li>`;
+}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+// ── WIRE ACTION CARD ───────────────────────────────────────
+let pickerTarget=null,pickerType=null,pickerCardId=null;
+const pkStatus=document.getElementById('pk-status');
+const pkPrio=document.getElementById('pk-prio');
+
+function wireActionCard(card, id) {
+  const head=card.querySelector('.card-head');
+  const toggleBtn=card.querySelector('.toggle-btn');
+  const btnStatus=card.querySelector('.btn-status');
+  const btnPrio=card.querySelector('.btn-prio');
+  const addPendBtn=card.querySelector('.btn-add-pend');
+
+  toggleBtn.addEventListener('click',e=>{e.stopPropagation();card.classList.toggle('open');saveCard(id);});
+  head.addEventListener('click',e=>{
+    if(e.target.closest('.btn-status,.btn-prio,[contenteditable],.toggle-btn,.info-btn'))return;
+    card.classList.toggle('open');saveCard(id);
+  });
+
+  btnStatus.addEventListener('click',e=>{
+    e.stopPropagation();
+    if(pickerTarget===btnStatus){closePickers();return;}
+    closePickers();pickerTarget=btnStatus;pickerType='status';pickerCardId=id;
+    pkStatus.querySelectorAll('.pick-opt').forEach(o=>o.classList.toggle('active',o.dataset.val===btnStatus.dataset.val));
+    posP(pkStatus,btnStatus);
+  });
+  btnPrio.addEventListener('click',e=>{
+    e.stopPropagation();
+    if(pickerTarget===btnPrio){closePickers();return;}
+    closePickers();pickerTarget=btnPrio;pickerType='prio';pickerCardId=id;
+    pkPrio.querySelectorAll('.pick-opt').forEach(o=>o.classList.toggle('active',o.dataset.val===btnPrio.dataset.val));
+    posP(pkPrio,btnPrio);
+  });
+
+  // Info tooltips
+  card.querySelectorAll('.info-btn').forEach(btn=>{
+    btn.addEventListener('mouseenter',e=>{e.stopPropagation();showTooltip(btn,btn.dataset.tip);});
+    btn.addEventListener('mouseleave',hideTooltip);
+    btn.addEventListener('click',e=>e.stopPropagation());
+  });
+
+  card.querySelectorAll('[contenteditable]').forEach(el=>{
+    el.addEventListener('mousedown',e=>e.stopPropagation());
+    el.addEventListener('blur',()=>saveCard(id));
+    el.addEventListener('input',()=>{clearTimeout(saveTimeout);saveTimeout=setTimeout(()=>saveCard(id),1200);});
+  });
+
+  if(addPendBtn) addPendBtn.addEventListener('click',()=>addNewPend(card,id));
+  card.querySelectorAll('.pend-item').forEach(li=>wirePendItem(li,id));
+}
+
+function wirePendItem(li,id){
+  const cb=li.querySelector('input[type=checkbox]');
+  const del=li.querySelector('.btn-del-pend');
+  const txt=li.querySelector('.pend-txt');
+  if(cb) cb.addEventListener('change',()=>{li.classList.toggle('done',cb.checked);saveCard(id);});
+  if(del) del.addEventListener('click',e=>{e.stopPropagation();li.remove();saveCard(id);});
+  if(txt){txt.addEventListener('mousedown',e=>e.stopPropagation());txt.addEventListener('blur',()=>saveCard(id));}
+}
+
+function addNewPend(card,id){
+  const list=card.querySelector('.pend-list');
+  const pid='p'+Date.now();
+  const li=document.createElement('li');
+  li.className='pend-item';li.dataset.pendId=pid;
+  li.innerHTML=`<input type="checkbox"><span class="pend-txt" contenteditable="true">Nova pendência</span><button class="btn-del-pend">×</button>`;
+  wirePendItem(li,id);list.appendChild(li);
+  const txt=li.querySelector('.pend-txt');txt.focus();
+  const r=document.createRange();r.selectNodeContents(txt);
+  window.getSelection().removeAllRanges();window.getSelection().addRange(r);
+  saveCard(id);
+}
+
+// ── SAVE ──────────────────────────────────────────────────
+function saveCard(id){
+  if(isRemoteUpdate||!currentProjectId) return;
+  const card=document.getElementById('ac-'+id);if(!card) return;
+  setSaving();
+  const pends=[];
+  card.querySelectorAll('.pend-item').forEach(li=>{
+    pends.push({id:li.dataset.pendId,text:li.querySelector('.pend-txt').textContent.trim(),done:li.querySelector('input[type=checkbox]').checked});
+  });
+  const howEl=card.querySelector('.how-val');
+  const howText=howEl?[...howEl.querySelectorAll('li')].map(l=>l.textContent.trim()).join('\n'):'';
+  const wvals=card.querySelectorAll('.wval[contenteditable]');
+  const data={
+    id,prio:card.querySelector('.btn-prio').dataset.val,status:card.querySelector('.btn-status').dataset.val,
+    open:card.classList.contains('open'),title:card.querySelector('.card-title').textContent.trim(),
+    why:card.querySelector('.why').textContent.trim(),
+    who:wvals[0]?.textContent.trim()||'',when:wvals[1]?.textContent.trim()||'',where:wvals[2]?.textContent.trim()||'',
+    how:howText,pends
+  };
+  db.ref('projects/'+currentProjectId+'/cards/'+id).set(data);
+}
+
+// ── PICKERS ───────────────────────────────────────────────
+function closePickers(){pkStatus.style.display='none';pkPrio.style.display='none';pickerTarget=pickerType=pickerCardId=null;}
+function posP(picker,btn){const r=btn.getBoundingClientRect();picker.style.left=Math.max(4,Math.min(r.left,window.innerWidth-220))+'px';picker.style.top=(r.bottom+8)+'px';picker.style.display='block';}
+
+pkStatus.querySelectorAll('.pick-opt').forEach(opt=>opt.addEventListener('click',e=>{
+  e.stopPropagation();if(!pickerTarget) return;
+  const cfg=STATUS_CFG[opt.dataset.val];
+  pickerTarget.className='btn-status '+cfg.cls;pickerTarget.textContent=cfg.label;pickerTarget.dataset.val=opt.dataset.val;
+  const cid=pickerCardId;closePickers();saveCard(cid);
+}));
+pkPrio.querySelectorAll('.pick-opt').forEach(opt=>opt.addEventListener('click',e=>{
+  e.stopPropagation();if(!pickerTarget) return;
+  const cfg=PRIO_CFG[opt.dataset.val];
+  pickerTarget.className='btn-prio '+cfg.cls;pickerTarget.textContent=cfg.label;pickerTarget.dataset.val=opt.dataset.val;
+  const card=pickerTarget.closest('.action-card');card.classList.remove('alta','media');card.classList.add(cfg.cardCls);
+  const cid=pickerCardId;closePickers();saveCard(cid);
+}));
+document.addEventListener('click',e=>{if(!e.target.closest('.picker-wrap,.btn-status,.btn-prio'))closePickers();});
+
+// ── STATS ─────────────────────────────────────────────────
+function updateStats(){
+  const cards=document.querySelectorAll('#cards .action-card');
+  let alta=0,media=0,ongoing=0,pending=0,done=0;
+  cards.forEach(c=>{
+    if(c.classList.contains('alta'))alta++;if(c.classList.contains('media'))media++;
+    const sv=c.querySelector('.btn-status')?.dataset.val;
+    if(sv==='ongoing')ongoing++;if(sv==='pending')pending++;if(sv==='done')done++;
+  });
+  const set=(id,val)=>{const el=document.getElementById(id);const s=String(val).padStart(2,'0');if(el.textContent!==s){el.textContent=s;el.classList.remove('flash');void el.offsetWidth;el.classList.add('flash');}};
+  set('s-total',cards.length);set('s-alta',alta);set('s-media',media);set('s-ongoing',ongoing);set('s-pending',pending);set('s-done',done);
+  cards.forEach((c,i)=>c.querySelector('.card-num').textContent=String(i+1).padStart(2,'0'));
+}
+
+// ── MODAL HELPERS ─────────────────────────────────────────
+function closeModal(id){document.getElementById(id).classList.remove('show');}
+document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('show');}));
+
+// ── NOVO PROJETO ──────────────────────────────────────────
+function openNewProject(){
+  npUnlocked=false;
+  document.getElementById('np-senha').value='';
+  document.getElementById('np-erro').classList.remove('show');
+  document.getElementById('np-fields').style.display='none';
+  document.getElementById('np-btn').textContent='Verificar senha';
+  document.getElementById('np-nome').value='';
+  document.getElementById('np-desc').value='';
+  document.getElementById('np-cliente').value='';
+  document.querySelectorAll('.emoji-opt').forEach(e=>e.classList.remove('selected'));
+  document.querySelector('.emoji-opt[data-emoji="🔧"]').classList.add('selected');
+  selectedEmoji='🔧';
+  document.getElementById('overlay-newproj').classList.add('show');
+}
+
+// Emoji selection
+document.querySelectorAll('.emoji-opt').forEach(e=>{
+  e.addEventListener('click',()=>{
+    document.querySelectorAll('.emoji-opt').forEach(x=>x.classList.remove('selected'));
+    e.classList.add('selected');selectedEmoji=e.dataset.emoji;
+  });
+});
+
+document.getElementById('np-btn').addEventListener('click',()=>{
+  if(!npUnlocked){
+    const senha=document.getElementById('np-senha').value;
+    if(senha===CREATE_PASSWORD){
+      npUnlocked=true;
+      document.getElementById('np-erro').classList.remove('show');
+      document.getElementById('np-fields').style.display='flex';
+      document.getElementById('np-btn').textContent='Criar projeto';
+      document.getElementById('np-nome').focus();
+    } else {
+      document.getElementById('np-erro').classList.add('show');
+    }
+    return;
+  }
+  const nome=document.getElementById('np-nome').value.trim();
+  if(!nome){document.getElementById('np-nome').focus();return;}
+  const id='proj'+Date.now();
+  db.ref('projects/'+id).set({
+    id,name:nome,desc:document.getElementById('np-desc').value.trim(),
+    client:document.getElementById('np-cliente').value.trim(),
+    emoji:selectedEmoji,createdAt:Date.now(),cards:{}
+  }).then(()=>{
+    closeModal('overlay-newproj');
+    db.ref('projects/'+id).once('value',s=>openProject(id,s.val()));
+  });
+});
+
+// ── NOVA AÇÃO ──────────────────────────────────────────────
+document.getElementById('btn-new-card').addEventListener('click',()=>document.getElementById('overlay-newcard').classList.add('show'));
+document.querySelectorAll('input[name="mprio"]').forEach(r=>r.addEventListener('change',updateRb));
+function updateRb(){
+  const v=document.querySelector('input[name="mprio"]:checked').value;
+  document.getElementById('rb-a').className='rbtn'+(v==='alta'?' sel-a':'');
+  document.getElementById('rb-m').className='rbtn'+(v==='media'?' sel-m':'');
+}
+
+document.getElementById('btn-card-ok').addEventListener('click',()=>{
+  const what=document.getElementById('f-what').value.trim();
+  if(!what||!currentProjectId){document.getElementById('f-what').focus();return;}
+  const prio=document.querySelector('input[name="mprio"]:checked').value;
+  const id='card'+Date.now();
+  const data={
+    id,prio,status:'pending',open:true,
+    title:what,
+    why:document.getElementById('f-why').value.trim()||'A definir.',
+    who:document.getElementById('f-who').value.trim()||'A definir',
+    when:document.getElementById('f-when').value.trim()||'A definir',
+    where:document.getElementById('f-where').value.trim()||'A definir',
+    how:document.getElementById('f-how').value.trim()||'A definir',
+    pends:[]
+  };
+  db.ref('projects/'+currentProjectId+'/cards/'+id).set(data);
+  closeModal('overlay-newcard');
+  ['f-what','f-why','f-who','f-when','f-where','f-how'].forEach(i=>document.getElementById(i).value='');
+  document.querySelector('input[name="mprio"][value="alta"]').checked=true;updateRb();
+});
+
+// ── GALERIA DE FOTOS ───────────────────────────────────────
+// Adicionar estilos de galeria dinamicamente
+const galleryStyle = document.createElement('style');
+galleryStyle.textContent = `
+.gallery-section{padding:0 40px 48px}
+.gallery-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.gallery-title{font-family:var(--fh);font-size:13px;letter-spacing:4px;text-transform:uppercase;color:var(--muted)}
+.btn-add-photo{font-family:var(--fh);font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:7px 16px;border-radius:3px;border:1px dashed var(--border);background:transparent;color:var(--muted);cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:6px}
+.btn-add-photo:hover{border-color:var(--orange);color:var(--orange)}
+.photo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+.photo-card{background:var(--card);border:1px solid var(--border);border-radius:6px;overflow:hidden;position:relative;group}
+.photo-card img{width:100%;height:160px;object-fit:cover;display:block;cursor:pointer;transition:opacity .2s}
+.photo-card img:hover{opacity:.85}
+.photo-card .photo-caption{padding:10px 12px;font-size:13px;color:var(--muted);border-top:1px solid var(--border)}
+.photo-card .photo-del{position:absolute;top:6px;right:6px;background:rgba(0,0,0,.7);border:none;color:#fff;width:24px;height:24px;border-radius:50%;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .2s}
+.photo-card:hover .photo-del{opacity:1}
+.photo-card .photo-del:hover{background:var(--danger)}
+.photo-empty{grid-column:1/-1;padding:32px;text-align:center;font-size:14px;color:var(--muted);border:1px dashed var(--border);border-radius:6px}
+.photo-error{width:100%;height:160px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;background:rgba(255,32,32,.06);border-bottom:1px solid rgba(255,32,32,.15)}
+.photo-error-icon{font-size:28px;color:var(--warn)}
+.photo-error-msg{font-size:13px;font-weight:600;color:var(--danger)}
+.photo-error-hint{font-size:11px;color:var(--muted);text-align:center;padding:0 12px;line-height:1.5}
+.photo-error-hint strong{color:var(--warn)}
+
+/* LIGHTBOX */
+.lightbox{position:fixed;inset:0;background:rgba(0,0,0,.96);z-index:99999;display:none;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px}
+.lightbox.open{display:flex}
+.lightbox img{width:auto;height:auto;max-width:calc(100vw - 80px);max-height:calc(100vh - 120px);object-fit:contain;border-radius:4px;display:block}
+.lightbox-caption{font-size:15px;color:#aaa;text-align:center;max-width:80vw}
+.lightbox-close{position:fixed;top:20px;right:24px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#fff;font-size:24px;width:40px;height:40px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .2s;z-index:100000}
+.lightbox-close:hover{background:rgba(232,0,13,.7)}
+
+/* MODAL FOTO */
+.photo-url-hint{font-size:12px;color:var(--muted);margin-top:4px;line-height:1.5}
+`;
+document.head.appendChild(galleryStyle);
+
+// Lightbox HTML
+document.body.insertAdjacentHTML('beforeend',`
+<div class="lightbox" id="lightbox" onclick="closeLightbox()">
+  <button class="lightbox-close" onclick="event.stopPropagation();closeLightbox()">×</button>
+  <img id="lb-img" src="" alt="">
+  <div class="lightbox-caption" id="lb-cap"></div>
+</div>
+<div class="overlay" id="overlay-photo">
+  <div class="modal sm">
+    <h2>Adicionar <span>Foto</span></h2>
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div class="fg full">
+        <label>Link do Imgur</label>
+        <input type="text" id="ph-url" placeholder="https://i.imgur.com/xxxxxxx.jpg">
+        <div class="photo-url-hint" style="margin-top:8px;padding:10px 12px;background:rgba(232,0,13,.06);border:1px solid rgba(232,0,13,.2);border-radius:6px;line-height:1.7">
+          <strong style="display:block;margin-bottom:4px">Como usar o imgbb:</strong>
+          1. Acesse <strong>imgbb.com</strong> e crie uma conta gratuita<br>
+          2. Crie um álbum com o nome do projeto (<strong>Create album</strong>)<br>
+          3. Faça upload da foto dentro do álbum<br>
+          4. Clique na imagem → copie o <strong>"Direct link"</strong><br>
+          5. Cole aqui — o link deve começar com <strong>i.ibb.co</strong> e terminar em <strong>.jpg</strong> ou <strong>.png</strong><br>
+          <span style="color:#E8000D;font-size:11px">⚠ Não use o link da página (ibb.co/...) — use somente o Direct link</span>
+        </div>
+      </div>
+      <div class="fg full">
+        <label>Legenda (opcional)</label>
+        <input type="text" id="ph-cap" placeholder="Ex: Vista geral do equipamento">
+      </div>
+    </div>
+    <div class="mactions">
+      <button class="btn-cancel" onclick="closeModal('overlay-photo')">Cancelar</button>
+      <button class="btn-ok" id="ph-ok">Adicionar</button>
+    </div>
+  </div>
+</div>`);
+
+// Converte links de serviços de imagem para URL direta
+function normalizeImageUrl(url) {
+  if (!url) return url;
+  // Google Drive: /file/d/ID/view ou /file/d/ID/preview
+  const m1 = url.match(/drive\.google\.com\/file\/d\/([^\/\?]+)/);
+  if (m1) return 'https://drive.google.com/uc?export=view&id=' + m1[1];
+  // Google Drive: open?id=ID ou uc?id=ID
+  const m2 = url.match(/drive\.google\.com\/(?:open|uc)\?.*id=([^&]+)/);
+  if (m2) return 'https://drive.google.com/uc?export=view&id=' + m2[1];
+  // imgbb: página ibb.co/SLUG → já retorna como está (será tratado em resolveImgbbUrl)
+  return url;
+}
+
+// Resolve URL do imgbb buscando o link direto via API oEmbed
+async function resolveImgbbUrl(url) {
+  // Se já é link direto i.ibb.co, usa direto
+  if (/i\.ibb\.co/.test(url)) return url;
+  // Se é página ibb.co/SLUG, extrai o slug e monta URL da imagem via API
+  const m = url.match(/ibb\.co\/([a-zA-Z0-9]+)/);
+  if (!m) return url;
+  try {
+    const res = await fetch('https://api.imgbb.com/oembed?url=' + encodeURIComponent('https://ibb.co/' + m[1]));
+    const data = await res.json();
+    if (data && data.url) return data.url;
+  } catch(e) {}
+  // Fallback: tenta montar URL direta com o slug
+  return 'https://i.ibb.co/' + m[1] + '/image.jpg';
+}
+
+async function resolveAndSetImage(imgEl, url, cap, idx) {
+  // Tenta resolver imgbb
+  if (/ibb\.co/.test(url)) {
+    const direct = await resolveImgbbUrl(url);
+    imgEl.src = direct;
+  }
+}
+
+function renderGallery(photos) {
+  const sec = document.getElementById('gallery-section');
+  if (!sec) return;
+  const grid = sec.querySelector('.photo-grid');
+  grid.innerHTML = '';
+  if (!photos || photos.length === 0) {
+    grid.innerHTML = '<div class="photo-empty">Nenhuma foto ainda. Clique em "+ Adicionar foto" para incluir imagens do andamento.</div>';
+    return;
+  }
+  photos.forEach((p, i) => {
+    const card = document.createElement('div');
+    card.className = 'photo-card';
+    const errHtml = `<div class="photo-error" style="display:none"><div class="photo-error-icon">&#9888;</div><div class="photo-error-msg">Imagem não carregou</div><div class="photo-error-hint">Use o <strong>Direct link</strong> do imgbb — começa com <strong>i.ibb.co</strong></div></div>`;
+    const capHtml = `<div class="photo-caption">${p.cap||'Sem legenda'}</div><button class="photo-del" onclick="deletePhoto(${i})">×</button>`;
+    const img = document.createElement('img');
+    img.alt = p.cap || '';
+    img.style.width = '100%';
+    img.style.height = '160px';
+    img.style.objectFit = 'cover';
+    img.style.display = 'block';
+    img.style.cursor = 'pointer';
+    card.innerHTML = errHtml + capHtml;
+    card.insertBefore(img, card.firstChild);
+    grid.appendChild(card);
+    // Resolve URL (suporte imgbb e outros)
+    const rawUrl = normalizeImageUrl(p.url);
+    if (/ibb\.co/.test(rawUrl) && !/i\.ibb\.co/.test(rawUrl)) {
+      // Página do imgbb: extrai ID e tenta montar direct link
+      const m = rawUrl.match(/ibb\.co\/([a-zA-Z0-9]+)/);
+      if (m) {
+        // imgbb direct links seguem padrão i.ibb.co/ID/filename
+        // Tenta via oEmbed proxy-free: usa thumbnail known pattern
+        img.src = 'https://i.ibb.co/' + m[1] + '/img.jpg';
+      } else {
+        img.src = rawUrl;
+      }
+    } else {
+      img.src = rawUrl;
+    }
+    img.onload = () => { img.onclick = () => openLightbox(img.src, p.cap||''); };
+    img.onerror = () => { img.style.display='none'; card.querySelector('.photo-error').style.display='flex'; };
+  });
+}
+
+function openLightbox(url, cap) {
+  document.getElementById('lb-img').src = normalizeImageUrl(url);
+  document.getElementById('lb-cap').textContent = cap;
+  document.getElementById('lightbox').classList.add('open');
+}
+function closeLightbox() { document.getElementById('lightbox').classList.remove('open'); }
+
+function deletePhoto(idx) {
+  if (!currentProjectId) return;
+  db.ref('projects/'+currentProjectId+'/photos').once('value', snap => {
+    const photos = snap.val() || [];
+    photos.splice(idx, 1);
+    db.ref('projects/'+currentProjectId+'/photos').set(photos);
+  });
+}
+
+document.getElementById('ph-ok').addEventListener('click', () => {
+  const rawUrl = document.getElementById('ph-url').value.trim();
+  if (!rawUrl || !currentProjectId) return;
+  const url = normalizeImageUrl(rawUrl);
+  const cap = document.getElementById('ph-cap').value.trim();
+  db.ref('projects/'+currentProjectId+'/photos').once('value', snap => {
+    const photos = snap.val() || [];
+    photos.push({url, cap});
+    db.ref('projects/'+currentProjectId+'/photos').set(photos);
+  });
+  closeModal('overlay-photo');
+  document.getElementById('ph-url').value = '';
+  document.getElementById('ph-cap').value = '';
+});
+
+// Injetar seção de galeria na tela do projeto
+const gallerySection = document.createElement('div');
+gallerySection.className = 'gallery-section';
+gallerySection.id = 'gallery-section';
+gallerySection.style.display = 'none';
+gallerySection.innerHTML = `
+  <div class="gallery-header">
+    <div class="gallery-title">📷 Galeria de fotos — andamento do projeto</div>
+    <button class="btn-add-photo" onclick="document.getElementById('overlay-photo').classList.add('show')">+ Adicionar foto</button>
+  </div>
+  <div class="photo-grid" id="photo-grid"></div>`;
+document.querySelector('.add-wrap').before(gallerySection);
+
+// Listener de fotos ao abrir projeto — integrado na função openProject acima
+
+// ── INIT: popular Firebase se vazio ───────────────────────
+const PROJECTS_INIT = {
+  proj_trensurb:{id:'proj_trensurb',name:'TRENSURB POA',desc:'Retrofitting Torno de Rodeiros',client:'Trensurb',emoji:'🚂',createdAt:Date.now(),photos:[],cards:{card1:{id:'card1',prio:'alta',status:'ongoing',open:true,title:'Validar encoder novo do Spindle Esquerdo com trem sob carga real',why:'O encoder substituído em 15/05 melhorou o comportamento em vazio, mas ainda não foi testado com trem em operação real.',who:'Thales Bender\nGabriel Dahmer\nLucas Lauri',when:'Imediato — 1ª usinagem após 19/05/2026',where:'Torno Subterrâneo\nTrensurb — Porto Alegre',how:'Acoplar trem e rodar usinagem de perfil completa\nMonitorar corrente dos spindles\nRegistrar gráficos antes / durante / após\nComparar lado esquerdo × direito\nDocumentar no relatório quinzenal',pends:[]},card2:{id:'card2',prio:'alta',status:'pending',open:false,title:'Investigar divergência de corrente nominal do Spindle (47A placa vs 60A configurado)',why:'O drive configurado para 60A enquanto placa indica 47A. Pode causar sobrecarga crônica.',who:'Edson\nJefferson Costa\nESA (Lipi)',when:'Até 26/05/2026',where:'Remoto (ESA Itália)\n+ Painel elétrico',how:'Cobrar retorno do Lipi sobre corrente\nSolicitar datasheet do motor\nComparar especificação com parâmetro\nAjustar com ESA remotamente\nRefazer teste comparativo',pends:[]},card3:{id:'card3',prio:'media',status:'ongoing',open:false,title:'Corrigir diferença de altura entre eixos X no movimento síncrono',why:'Os dois lados param em alturas diferentes, gerando alarmes e risco de colisão.',who:'Lucas Lauri\nThales Bender\nEdson',when:'Até 30/05/2026',where:'Torno Subterrâneo\nTrensurb — Porto Alegre',how:'Mapear lógica do PLC\nVerificar calibração dos zeros de máquina\nCriar compensação individual por lado\nTestar Série 100 e 200\nValidar com operadores',pends:[]},card4:{id:'card4',prio:'media',status:'done',open:false,title:'Monitorar sensores analógicos (régua W) durante operação assistida',why:'Suporte a 90° resolveu saída de range. Confirmar que não retorna durante a assistida.',who:'Gabriel Dahmer\nThales Bender',when:'30 dias a partir de 19/05/2026',where:'Torno Subterrâneo\nTrensurb — Porto Alegre',how:'Registrar valores a cada acoplamento\nFotografar régua antes/depois\nMedir gap a cada 5 trens\nPreencher planilha\nEscalar se gap > 3mm',pends:[]},card5:{id:'card5',prio:'alta',status:'pending',open:false,title:'Investigar e reduzir esforço elevado na usinagem de rodas',why:'Esforço de corte acima do esperado. Aumenta desgaste e compromete qualidade dimensional.',who:'Thales Bender\nLucas Lauri\nJefferson Costa\nESA (Lipi)',when:'Imediato — próxima usinagem',where:'Torno Subterrâneo\nTrensurb — Porto Alegre',how:'Registrar corrente e comparar com referência\nVerificar ferramentas\nRevisar parâmetros de corte\nChecar perfil da roda\nConsultar ESA sobre override\nDocumentar e reportar',pends:[{id:'p1',text:'Medir corrente na próxima usinagem',done:false},{id:'p2',text:'Verificar estado das ferramentas',done:false}]}}},
+  proj_cassemiro:{id:'proj_cassemiro',name:'FUNDAÇÃO CASSEMIRO FILHO',desc:'Quadro elétrico e quadro pneumático',client:'Fundação Cassemiro Filho',emoji:'🏗️',createdAt:Date.now()-10000,photos:[],cards:{c1:{id:'c1',prio:'media',status:'ongoing',open:false,title:'Retoque da chapa laranja no quadro elétrico',why:'Acabamento final de pintura necessário antes da entrega.',who:'Diego',when:'Sob demanda',where:'Produção — Tecnodrill',how:'Aplicar tinta laranja sobre a chapa\nAguardar secagem\nInspecionar acabamento final',pends:[]},c2:{id:'c2',prio:'alta',status:'pending',open:false,title:'Fabricação de batente para porta do painel',why:'Demanda liberada — batente necessário para fechamento correto da porta.',who:'Diego',when:'A definir',where:'Produção — Tecnodrill',how:'Definir dimensões\nFabricar peça\nInstalar e testar',pends:[]},c3:{id:'c3',prio:'alta',status:'pending',open:false,title:'Teste e inspeção do quadro pneumático',why:'Validação final necessária antes da entrega ao cliente.',who:'Diego',when:'A definir',where:'Produção — Tecnodrill',how:'Executar teste de pressão\nInspecionar conexões e vedações\nValidar funcionamento\nEmitir laudo',pends:[]}}},
+  proj_cnc_hpm:{id:'proj_cnc_hpm',name:'CNC HPM 600',desc:'Montagem e testes do CNC HPM 600',client:'A definir',emoji:'⚙️',createdAt:Date.now()-20000,photos:[],cards:{c1:{id:'c1',prio:'media',status:'pending',open:false,title:'Definição da posição do escovão de limpeza do carro',why:'Posição precisa ser definida pela engenharia antes da montagem.',who:'Engenharia',when:'A definir',where:'Engenharia — Tecnodrill',how:'Analisar espaço disponível\nDefinir posição ideal\nDocumentar e aprovar',pends:[]},c2:{id:'c2',prio:'alta',status:'pending',open:false,title:'Testar vedação dos acrílicos',why:'Confirmar que não há vazamento antes da entrega.',who:'Produção',when:'A definir',where:'Produção — Tecnodrill',how:'Montar vedação\nAplicar pressão de teste\nVerificar vazamentos\nCorrigir se necessário',pends:[]},c3:{id:'c3',prio:'alta',status:'ongoing',open:false,title:'Testar bomba de refrigeração com água',why:'Validar funcionamento antes da entrega.',who:'Diego',when:'Previsto 30/04',where:'Produção — Tecnodrill',how:'Conectar ao circuito\nLigar e monitorar pressão\nVerificar vazamentos e ruídos\nRegistrar resultado',pends:[]},c4:{id:'c4',prio:'media',status:'pending',open:false,title:'Definição da posição dos pés do painel',why:'Posição dos pés precisa ser definida para garantir estabilidade.',who:'Engenharia',when:'A definir',where:'Engenharia — Tecnodrill',how:'Verificar peso e centro de massa\nDefinir posição dos pés\nValidar com produção',pends:[]}}},
+  proj_maquetes:{id:'proj_maquetes',name:'MAQUETES',desc:'Controle e usinagem de maquetes AB Lateral',client:'A definir',emoji:'🔩',createdAt:Date.now()-30000,photos:[],cards:{c1:{id:'c1',prio:'media',status:'pending',open:false,title:'Elaborar método de controle KANBAN para cepos',why:'Necessário para rastreabilidade e fluxo dos cepos.',who:'Mateus — PCP',when:'A definir',where:'PCP — Tecnodrill',how:'Mapear tipos e quantidades\nDefinir método KANBAN\nImplantar e treinar',pends:[]},c2:{id:'c2',prio:'alta',status:'ongoing',open:false,title:'Usinagem maquete AB Lateral L1492 33-40',why:'Em usinagem em duas máquinas simultaneamente.',who:'Diego — Produção',when:'A definir',where:'Produção — Tecnodrill',how:'Usinar em duas máquinas\nControlar qualidade dimensional\nInspecionar e aprovar',pends:[]},c3:{id:'c3',prio:'alta',status:'ongoing',open:false,title:'Validar usinagem maquete AB Lateral L5846 33-40 (VIP e D&D)',why:'Validação nas parceiras VIP Usinagem e D&D.',who:'Gustavo — Direção',when:'A definir',where:'VIP Usinagem / D&D',how:'Enviar para VIP\nValidar dimensional\nEnviar para D&D\nValidar resultado final',pends:[]}}},
+  proj_lii_cola:{id:'proj_lii_cola',name:'LII — MÁQ. COLA',desc:'Linha II — Máquina de cola',client:'A definir',emoji:'🏭',createdAt:Date.now()-40000,photos:[],cards:{c1:{id:'c1',prio:'media',status:'pending',open:false,title:'Definição de itens mecânicos para estoque mínimo (KANBAN)',why:'Garantir continuidade da produção com estoque mínimo definido.',who:'Diego — Produção',when:'A definir',where:'Produção — Tecnodrill',how:'Levantar itens críticos\nDefinir quantidades mínimas\nImplantar KANBAN',pends:[]},c2:{id:'c2',prio:'alta',status:'ongoing',open:false,title:'Orçamentos e prazo para perfis de alumínio',why:'Garantir fornecimento dos kits conforme cronograma.',who:'Antonio — Compras',when:'Kit 1: 20/05 · Kit 2: 27/05 · Kits 3-4: 10/06',where:'Compras — Tecnodrill',how:'Fechar orçamento\nEmitir pedido\nControlar entrega',pends:[]},c3:{id:'c3',prio:'alta',status:'ongoing',open:false,title:'Compra de ACM — 5 kits',why:'5 kits necessários para montagem.',who:'Antonio — Compras',when:'Previsto 30/04',where:'Compras — Tecnodrill',how:'Emitir pedido\nAcompanhar entrega\nConferir qualidade',pends:[]},c4:{id:'c4',prio:'media',status:'pending',open:false,title:'Resolver chaveta das engrenagens',why:'Peças na GAP aguardando chaveta para montagem.',who:'Diego / Mateus',when:'A definir',where:'Produção — Tecnodrill',how:'Verificar especificação\nUsinar ou comprar\nMontar engrenagens',pends:[]},c5:{id:'c5',prio:'alta',status:'ongoing',open:false,title:'Compra de placa e motor',why:'Em processo de compra para montagem.',who:'Antonio — Compras',when:'Previsto 31/07',where:'Compras — Tecnodrill',how:'Confirmar especificação\nEmitir pedido\nAcompanhar entrega',pends:[]}}},
+  proj_ccr:{id:'proj_ccr',name:'CCR VIA 5',desc:'Avaliação e reparo de fonte eletrônica',client:'CCR',emoji:'🚃',createdAt:Date.now()-50000,photos:[],cards:{c1:{id:'c1',prio:'alta',status:'pending',open:false,title:'Avaliação das placas — aguardando retorno AUTSYSTEM',why:'Placas enviadas sem retorno. Necessário cobrar prazo.',who:'AUTSYSTEM (terceiro)',when:'Aguardando fornecedor',where:'AUTSYSTEM — Externo',how:'Contatar AUTSYSTEM\nRegistrar retorno\nAvaliar segunda opinião se necessário',pends:[{id:'p1',text:'Aguardando prazo de retorno da AUTSYSTEM',done:false}]}}},
+  proj_cope:{id:'proj_cope',name:'COPE',desc:'Projeto COPE — prazo final 31/08',client:'COPE',emoji:'🎯',createdAt:Date.now()-60000,photos:[],cards:{c1:{id:'c1',prio:'alta',status:'pending',open:false,title:'Definir fornecimento do CLP de segurança',why:'Necessário definir responsabilidade antes de atrasar cronograma.',who:'Guilherme — Engenharia',when:'A definir',where:'Engenharia — Tecnodrill',how:'Apresentar proposta\nAguardar definição do cliente\nEmitir pedido se aprovado',pends:[]},c2:{id:'c2',prio:'alta',status:'pending',open:false,title:'Emitir pedido de compra dos cabos',why:'Cabos ainda não comprados.',who:'Guilherme — Engenharia',when:'A definir',where:'Compras — Tecnodrill',how:'Levantar especificações\nEmitir pedido\nAcompanhar entrega',pends:[]},c3:{id:'c3',prio:'media',status:'pending',open:false,title:'Atualizar cronograma do projeto COPE',why:'Cronograma desatualizado — entrega em 31/08.',who:'Guilherme — Engenharia',when:'A definir',where:'Engenharia — Tecnodrill',how:'Levantar status de cada etapa\nAtualizar datas\nCompartilhar com equipe',pends:[]},c4:{id:'c4',prio:'media',status:'pending',open:false,title:'Nova esteira de cavaco (final do projeto)',why:'Item adiado para o final do projeto.',who:'A definir',when:'Final do projeto (31/08)',where:'A definir',how:'Aguardar etapas anteriores\nDefinir especificação\nComprar e instalar',pends:[]}}}
+};
+
+db.ref('projects').once('value', snap => {
+  if (!snap.val() || Object.keys(snap.val()).length === 0) {
+    db.ref('projects').set(PROJECTS_INIT);
+  }
+});
+</script>
+</body>
+</html>
