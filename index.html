@@ -272,6 +272,55 @@
   </style>
 </head>
 <body class="dark">
+
+<!-- TELA DE SENHA -->
+<div id="loginScreen" style="position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:#08090b;background-image:radial-gradient(circle at top left,rgba(232,0,13,.15),transparent 34rem)">
+  <div style="width:min(420px,90vw);padding:40px;border:1px solid #2a3140;border-top:4px solid #e8000d;border-radius:24px;background:#151922;box-shadow:0 24px 60px rgba(0,0,0,.5)">
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:32px">
+      <div style="width:48px;height:48px;border-radius:50%;background-image:url('data:image/jpeg;base64,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'); background-size:cover;background-position:center;flex-shrink:0"></div>
+      <div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:26px;font-weight:800;letter-spacing:.08em;text-transform:uppercase">Tecno<span style="color:#e8000d">drill</span></div>
+        <div style="font-size:11px;color:#929aaa;letter-spacing:.17em;text-transform:uppercase;margin-top:2px">Planos de ação 5W2H</div>
+      </div>
+    </div>
+    <div style="margin-bottom:20px">
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:700;text-transform:uppercase;color:#f4f6fb;margin-bottom:6px">Acesso restrito</div>
+      <div style="font-size:14px;color:#929aaa">Digite a senha para continuar</div>
+    </div>
+    <input id="loginInput" type="password" placeholder="Senha de acesso" autofocus
+      style="width:100%;min-height:50px;border:1px solid #2a3140;border-radius:14px;background:#1c222e;color:#f4f6fb;outline:none;padding:0 16px;font-size:16px;margin-bottom:12px;transition:.2s"
+      onkeydown="if(event.key==='Enter') checkLogin()">
+    <div id="loginError" style="display:none;color:#e8000d;font-size:13px;margin-bottom:12px;padding:10px 12px;background:rgba(232,0,13,.08);border-radius:8px;border:1px solid rgba(232,0,13,.25)">
+      ⚠ Senha incorreta. Tente novamente.
+    </div>
+    <button onclick="checkLogin()"
+      style="width:100%;min-height:50px;border:none;border-radius:14px;background:#e8000d;color:#fff;font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transition:.2s"
+      onmouseover="this.style.background='#ff2934'" onmouseout="this.style.background='#e8000d'">
+      Entrar
+    </button>
+  </div>
+</div>
+
+<script>
+  function checkLogin(){
+    const val = document.getElementById('loginInput').value;
+    const err = document.getElementById('loginError');
+    if(val === '@tecnodrill1995@'){
+      sessionStorage.setItem('td-auth','1');
+      document.getElementById('loginScreen').style.display='none';
+      err.style.display='none';
+    } else {
+      err.style.display='block';
+      document.getElementById('loginInput').value='';
+      document.getElementById('loginInput').focus();
+    }
+  }
+  // Verifica se já autenticou nessa sessão
+  if(sessionStorage.getItem('td-auth')==='1'){
+    document.getElementById('loginScreen').style.display='none';
+  }
+</script>
+
 <div class="app-shell">
   <div class="top-sync">
     <div class="sync-left"><span class="sync-dot" id="syncDot"></span><span id="syncText">Conectando...</span></div>
