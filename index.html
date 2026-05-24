@@ -71,7 +71,7 @@
     .mini-stat span{display:block;margin-top:6px;color:var(--muted);font-size:12px;letter-spacing:.08em;text-transform:uppercase}
 
     /* TOOLBAR */
-    .toolbar{display:grid;grid-template-columns:1fr auto auto;gap:12px;align-items:center;padding:28px 0 20px}
+    .toolbar{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;padding:28px 0 20px}
     .search-box,.select-box{min-height:44px;width:100%;border:1px solid var(--border);border-radius:14px;background:var(--surface);color:var(--text);outline:none;padding:0 14px;transition:.2s ease}
     .search-box:focus,.select-box:focus{border-color:var(--brand);box-shadow:0 0 0 4px var(--brand-soft)}
     .select-box{width:170px}
@@ -93,6 +93,13 @@
     .chip{display:inline-flex;align-items:center;gap:6px;padding:6px 9px;border-radius:999px;border:1px solid var(--border);background:var(--surface-2);color:var(--muted);font-size:12px}
     .chip-dot{width:7px;height:7px;border-radius:50%;background:var(--brand)}
     .add-card{display:grid;place-items:center;min-height:210px;border:1px dashed color-mix(in srgb,var(--brand) 45%,var(--border));background:transparent;box-shadow:none;text-align:center}
+    /* DRAG AND DROP */
+    .project-card.dragging{opacity:.4;transform:scale(.97);border-color:var(--brand);box-shadow:0 0 0 2px var(--brand)}
+    .project-card.drag-over{border-color:var(--brand);border-style:dashed;background:var(--brand-soft);transform:scale(1.02)}
+    .project-grid.drag-active .project-card:not(.dragging){transition:transform .2s ease}
+    .drag-handle{position:absolute;top:8px;left:8px;color:var(--muted);font-size:14px;opacity:0;transition:opacity .2s;cursor:grab;padding:4px;line-height:1}
+    .project-card:hover .drag-handle{opacity:.6}
+    .project-card.dragging .drag-handle{cursor:grabbing}
     .add-card:hover{background:var(--brand-soft)}
     .add-big{width:54px;height:54px;display:grid;place-items:center;margin:0 auto 12px;border-radius:18px;background:var(--brand);color:#fff;font-size:28px}
     .add-card strong{font-family:var(--fh);font-size:22px;text-transform:uppercase;letter-spacing:.08em}
@@ -307,11 +314,6 @@
       <div class="container">
         <div class="toolbar">
           <input class="search-box" id="projectSearch" type="search" placeholder="Buscar projeto, cliente ou descrição..." />
-          <select class="select-box" id="projectSort">
-            <option value="recent">Mais recentes</option>
-            <option value="oldest">Mais antigos</option>
-            <option value="name">Nome A-Z</option>
-          </select>
           <button class="pill-btn primary" id="newProjectBtn2" type="button">+ Novo projeto</button>
         </div>
         <div class="project-grid" id="projectGrid"></div>
@@ -895,19 +897,15 @@
 
   function projectArray(){
     const q=$('#projectSearch').value.trim().toLowerCase();
-    const sort=$('#projectSort').value;
+    const sort='custom';
     let items=Object.values(state.projects||{});
     if(q) items=items.filter(p=>[p.name,p.desc,p.client].join(' ').toLowerCase().includes(q));
-    items.sort((a,b)=>{
-      if(sort==='name') return String(a.name||'').localeCompare(String(b.name||''));
-      if(sort==='oldest') return (a.createdAt||0)-(b.createdAt||0);
-      return (b.createdAt||0)-(a.createdAt||0);
-    });
+    items.sort((a,b)=>(a.order!=null?a.order:a.createdAt||0)-(b.order!=null?b.order:b.createdAt||0));
     return items;
   }
 
   function renderDashboard(){
-    state.projectIds=Object.values(state.projects||{}).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0)).map(p=>p.id);
+    state.projectIds=Object.values(state.projects||{}).sort((a,b)=>(a.order??a.createdAt??0)-(b.order??b.createdAt??0)).map(p=>p.id);
     const all=Object.values(state.projects||{});
     const allCards=all.flatMap(p=>Object.values(p.cards||{}));
     $('#dashProjects').textContent=String(all.length).padStart(2,'0');
@@ -919,7 +917,7 @@
       const done=cards.filter(c=>c.status==='done').length;
       const pending=cards.filter(c=>c.status==='pending').length;
       const el=document.createElement('article');
-      el.className='project-card';
+      el.className='project-card'; el.dataset.projectId = project.id;
       const hasEmoji = !!project.emoji;
       el.innerHTML=`
         <div class="project-top">
@@ -934,8 +932,61 @@
           <span class="chip"><span class="chip-dot" style="background:var(--danger)"></span>${pending} pendentes</span>
         </div>
         <div class="project-client">Cliente: <strong>${text(project.client||'A definir')}</strong></div>`;
+      // Handle de arraste
+      const handle = document.createElement('div');
+      handle.className = 'drag-handle';
+      handle.innerHTML = '⠿';
+      handle.title = 'Arrastar para reordenar';
+      el.appendChild(handle);
+
+      el.setAttribute('draggable', 'true');
+
+      el.addEventListener('dragstart', e=>{
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', project.id);
+        setTimeout(()=>{ el.classList.add('dragging'); $('#projectGrid').classList.add('drag-active'); }, 0);
+      });
+
+      el.addEventListener('dragend', ()=>{
+        el.classList.remove('dragging');
+        $('#projectGrid').classList.remove('drag-active');
+        $$('.project-card').forEach(c=>c.classList.remove('drag-over'));
+      });
+
+      el.addEventListener('dragover', e=>{
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        $$('.project-card').forEach(c=>c.classList.remove('drag-over'));
+        if(!el.classList.contains('dragging') && !el.classList.contains('add-card')) el.classList.add('drag-over');
+      });
+
+      el.addEventListener('dragleave', ()=>{ el.classList.remove('drag-over'); });
+
+      el.addEventListener('drop', e=>{
+        e.preventDefault();
+        el.classList.remove('drag-over');
+        const draggedId = e.dataTransfer.getData('text/plain');
+        if(draggedId === project.id) return;
+        // Reordenar: pegar ordem atual dos cards visíveis
+        const cards = $$('.project-card:not(.add-card)');
+        const ids = cards.map(c=>c.dataset.projectId);
+        const fromIdx = ids.indexOf(draggedId);
+        const toIdx = ids.indexOf(project.id);
+        if(fromIdx === -1 || toIdx === -1) return;
+        // Calcular nova ordem para cada projeto
+        const updates = {};
+        ids.splice(fromIdx, 1);
+        ids.splice(toIdx, 0, draggedId);
+        ids.forEach((pid, idx)=>{
+          updates['projects/' + pid + '/order'] = idx * 10;
+        });
+        markSaving();
+        db.ref().update(updates);
+      });
+
       el.addEventListener('click', e=>{
         if(e.target.closest('[data-edit-emoji]')) return;
+        if(e.target.closest('.drag-handle')) return;
         openProject(project.id);
       });
       $('[data-edit-emoji]', el).addEventListener('click', e=>{
@@ -1227,7 +1278,7 @@
   function createProject(){
     const name=$('#pName').value.trim(); if(!name){ $('#pName').focus(); return; }
     const id='proj_'+Date.now();
-    const project={id,name,desc:$('#pDesc').value.trim(),client:$('#pClient').value.trim()||'A definir',emoji:$('#pEmoji').value||'',createdAt:Date.now(),deadline:'',cards:{},photos:[]};
+    const project={id,name,desc:$('#pDesc').value.trim(),client:$('#pClient').value.trim()||'A definir',emoji:$('#pEmoji').value||'',createdAt:Date.now(),deadline:'',cards:{},photos:[],order:Date.now()};
     save('projects/'+id,project).then(()=>{
       closeModal('projectModal');
       ['pName','pDesc','pClient'].forEach(x=>$('#'+x).value='');
@@ -1285,7 +1336,6 @@
     $('#saveActionBtn').addEventListener('click',createAction);
     $('#savePhotoBtn').addEventListener('click',addPhoto);
     $('#projectSearch').addEventListener('input',renderDashboard);
-    $('#projectSort').addEventListener('change',renderDashboard);
     // Filtros via cards do painel
     $$('.filter-card').forEach(btn=>{
       btn.addEventListener('click', ()=>{
