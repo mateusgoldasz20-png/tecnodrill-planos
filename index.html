@@ -929,6 +929,11 @@
   function applyTheme(t){ document.body.className=t; localStorage.setItem('td-theme',t); $('#themeBtn').textContent=t==='dark'?'🌙 Tema':'☀️ Tema'; }
   function openModal(id){ $('#'+id).classList.add('show'); }
   function closeModal(id){ $('#'+id).classList.remove('show'); }
+  function openProjectModal(){
+    $('#pEmoji').value = '';
+    buildEmojiPicker($('#pEmojiPicker'), '', val => { $('#pEmoji').value = val; });
+    openModal('projectModal');
+  }
 
   function goHome(){
     detachListeners(); state.currentProjectId=null;
@@ -1372,11 +1377,6 @@
 
     $('#homeBtn').addEventListener('click',goHome);
     $('#backBtn').addEventListener('click',goHome);
-    function openProjectModal(){
-      $('#pEmoji').value = '';
-      buildEmojiPicker($('#pEmojiPicker'), '', val => { $('#pEmoji').value = val; });
-      openModal('projectModal');
-    }
     $('#newProjectBtn').addEventListener('click', openProjectModal);
     $('#newProjectBtn2').addEventListener('click', openProjectModal);
     $('#newActionBtn').addEventListener('click',()=>openModal('actionModal'));
