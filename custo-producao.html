@@ -1,0 +1,1007 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TECNODRILL · Custo de Produção</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#08090b; --panel:#141414; --panel-2:#1d2026; --panel-3:#232832; --line:#30343c;
+    --red:#E8000D; --red-soft:#ff4b55; --green:#20c997; --amber:#f6c453;
+    --text:#f5f7fb; --muted:#a8afbc; --muted-2:#737b89;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; -webkit-font-smoothing:antialiased;}
+  h1,h2,h3,.disp{font-family:'Barlow Condensed',sans-serif; text-transform:uppercase; letter-spacing:0.02em;}
+  .wrap{max-width:none; padding:26px 24px 70px;}
+
+  .app-shell{display:grid; grid-template-columns:202px minmax(0,1fr); min-height:100vh;}
+  .sidebar{position:sticky; top:0; height:100vh; background:#0b0b0c; border-right:1px solid var(--line); padding:18px 10px; overflow:auto;}
+  .side-brand{display:flex; align-items:center; gap:10px; padding:4px 8px 24px;}
+  .brand-mark{width:36px;height:36px;flex:0 0 36px;border-radius:8px;background:var(--red);display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:16px;color:#fff;}
+  .side-brand strong{font-family:'Barlow Condensed',sans-serif; font-size:20px; letter-spacing:.08em;}
+  .side-brand div span{display:block; color:var(--muted-2); font-size:10px; letter-spacing:.16em; text-transform:uppercase; margin-top:1px;}
+  .side-nav{display:flex; flex-direction:column; gap:6px;}
+  .side-nav a{display:flex; align-items:center; gap:10px; min-height:42px; padding:10px 12px; color:var(--muted); text-decoration:none; border-radius:6px; border:1px solid transparent; font-weight:600; font-size:14px;}
+  .side-nav a.active{background:#3a070b; color:#fff; border-color:#4e0b10;}
+  .side-nav a:hover{color:#fff; border-color:var(--line); background:#141414;}
+  .nav-ico{width:14px; color:#fff; text-align:center; font-size:15px;}
+  .main-shell{min-width:0;}
+  .topbar{min-height:72px; display:flex; align-items:center; justify-content:space-between; gap:18px; padding:12px 24px; background:#101011; border-bottom:1px solid var(--line); position:sticky; top:0; z-index:5; flex-wrap:wrap;}
+  .topbar-title{display:flex; align-items:center; gap:12px; min-width:0; flex-wrap:wrap;}
+  .topbar-title .scope{color:var(--muted); border:1px solid var(--line); background:#18191c; border-radius:18px; padding:7px 12px; font-size:12px; white-space:nowrap;}
+  .topbar-actions{display:flex; align-items:center; gap:8px; flex-wrap:wrap; justify-content:flex-end;}
+  .filter-chip{border:1px solid var(--line); background:#121316; color:var(--text); padding:10px 14px; min-height:40px; font-weight:700;}
+
+  .op-picker{position:relative; min-width:220px;}
+  .op-picker input{width:100%; min-height:40px; padding:9px 12px; background:#0f1115; border:1px solid var(--line); color:#fff; font-weight:600; outline:none; font-size:13px;}
+  .op-picker input:focus{border-color:var(--red);}
+  .op-picker-list{position:absolute; top:calc(100% + 4px); left:0; right:0; max-height:280px; overflow-y:auto; background:#141518; border:1px solid var(--line); z-index:20; display:none;}
+  .op-picker-list.open{display:block;}
+  .op-picker-item{padding:9px 12px; cursor:pointer; font-size:13px; border-bottom:1px solid #23262c;}
+  .op-picker-item:hover{background:#1f2126;}
+  .op-picker-item small{display:block; color:var(--muted); font-size:11px; margin-top:2px;}
+  .op-chip{display:inline-flex; align-items:center; gap:8px; padding:8px 10px 8px 14px; background:#1a0507; border:1px solid #4e0b10; border-radius:999px; font-weight:700; font-size:13px;}
+  .op-chip button{background:transparent; border:0; color:var(--muted); cursor:pointer; font-size:15px; line-height:1; padding:2px;}
+  .op-chip button:hover{color:#fff;}
+
+  .btn{border:1px solid var(--red); background:var(--red); color:white; font-family:'Inter',sans-serif; font-weight:700; padding:10px 14px; cursor:pointer; min-height:40px; text-decoration:none; display:inline-flex; align-items:center; justify-content:center;}
+  .btn.secondary{background:transparent; color:var(--text); border-color:var(--line);}
+  .btn.export{min-width:150px;}
+  .btn:disabled{opacity:.4; cursor:not-allowed;}
+
+  .tabs{display:flex; gap:8px; margin-bottom:18px;}
+  .tab{flex:1; padding:14px 18px; background:#111214; border:1px solid var(--line); border-radius:6px; cursor:pointer; font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:18px; letter-spacing:0.03em; color:var(--muted); position:relative; transition:all .15s;}
+  .tab small{display:block; font-family:'Inter',sans-serif; font-weight:400; font-size:11px; color:var(--muted); text-transform:none; letter-spacing:0; margin-top:2px;}
+  .tab.active{background:#1a0507; color:var(--text); border-color:var(--red);}
+  .tab.active::after{content:""; position:absolute; left:0; right:0; bottom:-1px; height:3px; background:var(--red);}
+
+  .cards{display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:30px;}
+  .card{position:relative; overflow:hidden; border-radius:6px; background:linear-gradient(180deg,var(--panel-2),var(--panel)); border:1px solid var(--line); border-left:3px solid var(--red); padding:18px 18px 16px; min-height:96px;}
+  .card::after{content:""; position:absolute; right:-22px; top:-18px; width:88px; height:88px; border:1px solid rgba(255,255,255,.06); transform:rotate(45deg);}
+  .card .lbl{font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:0.07em; margin-bottom:8px;}
+  .card .val{font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:30px; line-height:1; text-shadow:2px 2px 0 #000;}
+  .card .val.pending{color:var(--muted); font-size:17px; text-shadow:none;}
+  .card.total{border-left-color:var(--red); background:linear-gradient(135deg,#2b070b,var(--panel));}
+  .card.total .val{color:var(--red);}
+
+  .executive-brief{display:grid; grid-template-columns:1.1fr 0.9fr; gap:14px; margin-bottom:18px;}
+  .brief-main,.rate-panel{background:var(--panel); border:1px solid var(--line); padding:18px; border-radius:6px;}
+  .brief-title{display:flex; align-items:flex-start; justify-content:space-between; gap:14px; margin-bottom:16px;}
+  .brief-title h2{font-size:24px; margin:0; text-shadow:2px 2px 0 #000;}
+  .brief-title p{margin:4px 0 0; color:var(--muted); font-size:12.5px; line-height:1.45;}
+  .summary-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:10px;}
+  .metric{border:1px solid var(--line); background:var(--panel-2); padding:14px; min-height:94px;}
+  .metric .k{font-size:10.5px; text-transform:uppercase; letter-spacing:.07em; color:var(--muted); margin-bottom:8px;}
+  .metric .v{font-family:'Barlow Condensed',sans-serif; font-size:28px; font-weight:700; line-height:1;}
+  .metric .s{font-size:11.5px; color:var(--muted); margin-top:8px; line-height:1.35;}
+  .analysis-panel{background:var(--panel); border:1px solid var(--line); border-left:3px solid var(--red); padding:18px; margin:18px 0; border-radius:6px;}
+  .analysis-panel h2{font-size:24px; margin:0 0 8px; text-shadow:2px 2px 0 #000;}
+  .analysis-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:12px;}
+  .analysis-item{background:#17191e; border:1px solid #2b2f38; padding:12px; min-height:92px;}
+  .analysis-item strong{display:block; color:#fff; margin-bottom:6px;}
+  .analysis-item span{display:block; color:var(--muted); font-size:12px; line-height:1.4;}
+  .rate-panel h2{font-size:20px; margin:0 0 8px;}
+  .rate-panel p{margin:0 0 14px; color:var(--muted); font-size:12.5px; line-height:1.45;}
+  .rate-actions{display:flex; justify-content:flex-start; gap:8px; align-items:center; margin-bottom:14px; flex-wrap:wrap;}
+  .progress{height:9px; background:#0f1115; border:1px solid var(--line); overflow:hidden;}
+  .progress span{display:block; height:100%; width:0%; background:linear-gradient(90deg,var(--red),var(--green)); transition:width .2s;}
+  .progress-meta{display:flex; justify-content:space-between; color:var(--muted); font-size:11.5px; margin-top:8px;}
+  .status-line{display:flex; gap:8px; align-items:center; color:var(--muted); font-size:12px; margin-top:10px;}
+  .status-dot{width:8px; height:8px; border-radius:50%; background:var(--amber); display:inline-block;}
+  .status-dot.ok{background:var(--green);}
+
+  section{margin-bottom:34px; scroll-margin-top:92px;}
+  .sec-head{display:flex; align-items:baseline; justify-content:space-between; margin-bottom:14px; gap:12px; flex-wrap:wrap;}
+  .sec-head h2{font-size:24px; margin:0; font-weight:700; text-shadow:2px 2px 0 #000;}
+  .sec-head .note{font-size:12px; color:var(--muted); font-family:'Inter',sans-serif;}
+
+  table{width:100%; border-collapse:collapse; font-size:13.5px;}
+  thead th{text-align:left; font-family:'Barlow Condensed',sans-serif; font-weight:600; font-size:11.5px; text-transform:uppercase; letter-spacing:0.06em; color:var(--muted); border-bottom:1px solid var(--line); padding:8px 10px; position:sticky; top:0; background:var(--panel);}
+  tbody td{padding:8px 10px; border-bottom:1px solid var(--line); color:var(--text);}
+  tbody tr:hover{background:var(--panel-2);}
+  td.num, th.num{text-align:right; font-variant-numeric:tabular-nums;}
+  tfoot td{padding:10px; font-weight:700; border-top:2px solid var(--red); font-variant-numeric:tabular-nums;}
+  .muted{color:var(--muted);}
+  .subtle{color:var(--muted); font-size:12px;}
+
+  .rate-input{width:96px; background:#0f1115; border:1px solid var(--line); color:var(--text); font-family:'Inter',sans-serif; font-weight:700; padding:7px 8px; text-align:right; font-size:13px;}
+  .rate-input:focus{outline:none; border-color:var(--red); box-shadow:0 0 0 2px rgba(232,0,13,.18);}
+  tr.missing-rate td{background:rgba(246,196,83,.045);}
+
+  .panel{background:var(--panel); border:1px solid var(--line); padding:18px; border-radius:6px;}
+  .chart-box{position:relative; height:340px;}
+  .scroll-box{max-height:480px; overflow-y:auto; border:1px solid var(--line);}
+  .scroll-box table thead th{position:sticky; top:0;}
+
+  .pill{display:inline-block; font-size:10.5px; padding:2px 8px; border:1px solid var(--line); border-radius:2px; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em;}
+  .pill.op{border-color:#3a3a3a; color:#ccc; font-weight:700;}
+  .pill.ok{border-color:rgba(32,201,151,.55); color:var(--green);}
+  .pill.warn{border-color:rgba(246,196,83,.7); color:var(--amber);}
+
+  .material-layout{display:grid; grid-template-columns:minmax(320px,380px) minmax(0,1fr); gap:14px; align-items:start;}
+  .material-ranking{background:var(--panel); border:1px solid var(--line); padding:14px; border-radius:6px;}
+  .material-ranking-title{display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:12px;}
+  .material-ranking-title h3{margin:0; font-size:18px; text-transform:uppercase; color:#fff; text-shadow:2px 2px 0 #000;}
+  .material-ranking-title span{font-size:10px; color:var(--muted-2); text-transform:uppercase; letter-spacing:.08em;}
+  .material-search{width:100%; min-height:38px; margin-bottom:12px; padding:9px 10px; background:#0f1115; border:1px solid var(--line); color:#fff; font-weight:600; outline:none;}
+  .material-search:focus{border-color:var(--red);}
+  .material-list{display:flex; flex-direction:column; gap:8px;}
+  .material-rank-item{display:grid; grid-template-columns:34px minmax(0,1fr) auto; gap:10px; align-items:center; min-height:54px; padding:9px 10px; background:#17191e; border:1px solid #2b2f38; border-left:4px solid var(--red); color:var(--text); cursor:pointer; text-align:left; position:relative; overflow:hidden; width:100%;}
+  .material-rank-item::before{content:""; position:absolute; inset:0 auto 0 0; width:var(--share,0%); background:linear-gradient(90deg,rgba(232,0,13,.32),rgba(232,0,13,0)); pointer-events:none;}
+  .material-rank-item > *{position:relative; z-index:1;}
+  .material-rank-item.active{border-color:var(--red); background:#221014;}
+  .material-rank-main{min-width:0;}
+  .material-rank-main strong{display:block; color:#fff; font-size:13px; line-height:1.25;}
+  .material-rank-main small{display:block; color:var(--muted); font-size:11px; margin-top:3px;}
+  .material-rank-value{text-align:right; white-space:nowrap;}
+  .material-rank-value strong{display:block; color:#fff; font-size:13px;}
+  .material-rank-value small{display:block; color:var(--red); font-size:11px; font-weight:800; margin-top:3px;}
+  .material-detail-panel{background:var(--panel); border:1px solid var(--line); padding:18px; border-radius:6px; min-height:220px;}
+  .material-empty{min-height:220px; display:grid; place-items:center; color:var(--muted); text-align:center; border:1px dashed #343945; background:#111318;}
+  .material-detail-head{display:flex; justify-content:space-between; gap:14px; align-items:flex-start; margin-bottom:14px;}
+  .material-detail-head h3{margin:0; font-size:20px; text-transform:uppercase; color:#fff; text-shadow:2px 2px 0 #000;}
+  .material-detail-head .cost{color:var(--red); font-weight:800; white-space:nowrap;}
+
+  .tree-block{border:1px solid #30343c; background:#15171c; min-width:0; margin-bottom:6px;}
+  .tree-head{width:100%; border:0; border-left:3px solid var(--red); background:#1d2026; color:var(--text); display:grid; grid-template-columns:minmax(0,1fr) auto auto; gap:8px; align-items:center; padding:8px 9px; text-align:left; cursor:pointer; min-width:0;}
+  .tree-head > span:first-child{min-width:0;}
+  .tree-head strong{font-family:'Barlow Condensed',sans-serif; font-size:13px; letter-spacing:.02em; text-transform:uppercase; overflow-wrap:anywhere;}
+  .tree-head small{display:block; color:var(--muted); font-size:10px; margin-top:2px; overflow-wrap:anywhere;}
+  .tree-head .tree-cost{color:var(--red); font-weight:800; white-space:nowrap;}
+  .chevron{display:inline-block; width:0; height:0; border-top:5px solid transparent; border-bottom:5px solid transparent; border-left:7px solid var(--text); transition:transform .15s; margin-right:8px; vertical-align:middle;}
+  .tree-block.open > .tree-head .chevron{transform:rotate(90deg);}
+  .tree-body{display:none; border-top:1px solid var(--line); padding:6px;}
+  .tree-block.open > .tree-body{display:block;}
+  .tree-leaf{display:grid; grid-template-columns:minmax(64px,.6fr) minmax(160px,2.4fr) minmax(64px,.8fr) minmax(90px,1fr); gap:8px; align-items:center; border:1px solid #2b2f38; background:#111318; padding:7px 9px; margin-bottom:5px; max-width:100%; min-width:0; font-size:12px;}
+  .tree-leaf:hover{background:#181b21;}
+  .tree-code{color:#dce7ff; font-weight:800; font-size:10.5px; min-width:0; overflow-wrap:anywhere;}
+  .tree-desc{font-weight:700; font-size:12.5px; line-height:1.22; min-width:0; overflow-wrap:anywhere;}
+  .tree-num{text-align:right; font-size:12px; font-variant-numeric:tabular-nums; white-space:nowrap; min-width:0;}
+  .tree-total{color:#fff; font-weight:800;}
+  .component-count{display:inline-flex; align-items:center; gap:5px; margin-left:8px; color:var(--muted); font-family:'Inter',sans-serif; font-size:11px; font-weight:700;}
+
+  .dashboard-grid{display:grid; grid-template-columns:minmax(0,1.45fr) minmax(320px,.75fr); gap:14px;}
+  .ranking-panel{background:var(--panel); border:1px solid var(--line); padding:18px; border-radius:6px; overflow:hidden;}
+  .ranking-title{display:flex; justify-content:space-between; gap:12px; margin-bottom:14px; align-items:flex-start;}
+  .ranking-title h3{font-size:20px; margin:0; text-transform:uppercase; color:#fff; text-shadow:2px 2px 0 #000;}
+  .ranking-title span{font-size:10px; color:var(--muted-2); text-transform:uppercase; letter-spacing:.08em;}
+  .ranking-list{display:flex; flex-direction:column; gap:8px;}
+  .ranking-row{display:grid; grid-template-columns:34px minmax(0,1fr) auto; gap:10px; align-items:center; min-height:44px; padding:9px 10px; background:#17191e; border:1px solid #2b2f38; border-left:4px solid var(--red); position:relative; overflow:hidden;}
+  .ranking-row::before{content:""; position:absolute; inset:0 auto 0 0; width:var(--share,0%); background:linear-gradient(90deg,rgba(232,0,13,.32),rgba(232,0,13,0)); pointer-events:none;}
+  .ranking-row > *{position:relative; z-index:1;}
+  .rank{color:var(--muted); font-family:'Barlow Condensed',sans-serif; font-size:18px; font-weight:800; text-align:right;}
+  .ranking-cc{min-width:0;}
+  .ranking-cc strong{display:block; color:#fff; font-size:13px; line-height:1.25;}
+  .ranking-cc small{display:block; color:var(--muted); font-size:11px; margin-top:3px;}
+  .ranking-value{text-align:right; white-space:nowrap;}
+  .ranking-value strong{display:block; color:#fff; font-size:13px;}
+  .ranking-value small{display:block; color:var(--red); font-size:11px; font-weight:800; margin-top:3px;}
+
+  .cc-tooltip{position:fixed; z-index:100; background:#15171c; border:1px solid var(--red); padding:10px 12px; font-size:12px; color:var(--text); max-width:280px; box-shadow:0 8px 24px rgba(0,0,0,.5); display:none; pointer-events:none;}
+  .cc-tooltip.show{display:block;}
+  .cc-tooltip .tt-title{font-family:'Barlow Condensed',sans-serif; font-weight:700; text-transform:uppercase; font-size:12px; margin-bottom:6px; color:#fff; letter-spacing:.02em;}
+  .cc-tooltip .tt-row{display:flex; justify-content:space-between; gap:14px; padding:2px 0; color:var(--muted);}
+  .cc-tooltip .tt-row b{color:#fff; font-weight:700; white-space:nowrap;}
+  .cc-tooltip .tt-note{margin-top:2px; margin-bottom:6px; font-size:10.5px; color:var(--muted-2); line-height:1.35;}
+  .material-detail-head h3{cursor:help;}
+  .tree-leaf{cursor:help;}
+
+  .upload-empty{display:grid; place-items:center; min-height:70vh; padding:40px 20px;}
+  .upload-box{width:min(560px,100%); text-align:center; background:var(--panel); border:1px dashed var(--line); border-radius:10px; padding:44px 30px;}
+  .upload-box h2{font-size:24px; margin:0 0 8px;}
+  .upload-box p{color:var(--muted); font-size:13.5px; margin:0 0 22px; line-height:1.5;}
+  .upload-drop{border:2px dashed var(--line); border-radius:8px; padding:30px; cursor:pointer; transition:border-color .15s,background .15s;}
+  .upload-drop:hover{border-color:var(--red); background:rgba(232,0,13,.05);}
+  .upload-drop input{display:none;}
+  .upload-err{margin-top:16px; padding:10px 14px; border:1px solid rgba(232,0,13,.4); background:rgba(232,0,13,.08); color:var(--red-soft); font-size:13px; text-align:left;}
+  .upload-loading{margin-top:16px; color:var(--muted); font-size:13px;}
+  .file-status{display:flex; align-items:center; gap:10px; color:var(--muted); font-size:12px;}
+  .file-status b{color:#fff;}
+
+  footer{margin-top:40px; padding-top:18px; border-top:1px solid var(--line); color:var(--muted); font-size:11.5px; display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px;}
+
+  @media(max-width:1050px){
+    .app-shell{grid-template-columns:1fr;}
+    .sidebar{position:relative; height:auto; display:none;}
+    .topbar{position:relative; height:auto; align-items:flex-start; flex-direction:column; padding:16px 20px;}
+    .dashboard-grid{grid-template-columns:1fr;}
+    .material-layout{grid-template-columns:1fr;}
+    .analysis-grid{grid-template-columns:1fr;}
+    .executive-brief{grid-template-columns:1fr;}
+    .summary-grid{grid-template-columns:1fr;}
+    .cards{grid-template-columns:repeat(2,1fr);}
+  }
+</style>
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="side-brand">
+      <span class="brand-mark">TD</span>
+      <div><strong>TECNODRILL</strong><span>Custo de Produção</span></div>
+    </div>
+    <nav class="side-nav">
+      <a class="active" data-tab="visao-geral" href="#visao-geral">▦ Visão Geral</a>
+      <a data-tab="mao-obra" href="#mao-obra">◷ Mão de Obra</a>
+      <a data-tab="materiais" href="#materiais">▤ Matéria-prima</a>
+      <a data-tab="terceiros" href="#terceiros">◇ Terceiros</a>
+    </nav>
+  </aside>
+  <main class="main-shell">
+    <div class="topbar">
+      <div class="topbar-title">
+        <span class="scope" id="scopeLabel">Nenhum arquivo carregado</span>
+      </div>
+      <div class="topbar-actions" id="topbarActions" hidden>
+        <div class="op-picker">
+          <input id="opSearchA" type="text" placeholder="Buscar OP principal...">
+          <div class="op-picker-list" id="opListA"></div>
+        </div>
+        <div class="op-picker">
+          <input id="opSearchB" type="text" placeholder="Comparar com OP (opcional)...">
+          <div class="op-picker-list" id="opListB"></div>
+        </div>
+        <button class="btn export" id="exportCsvBtn" type="button">Exportar CSV</button>
+        <button class="btn export secondary" id="exportPdfBtn" type="button">Exportar PDF</button>
+        <button class="btn secondary" id="trocarArquivoBtn" type="button">Trocar arquivo</button>
+      </div>
+    </div>
+
+    <div class="wrap" id="uploadWrap">
+      <div class="upload-empty">
+        <div class="upload-box">
+          <h2>Carregar planilha de custos</h2>
+          <p>Envie o arquivo exportado do SIGER (abas "ITENS OP CUSTO", "ACOMP PROD" e "RET SERVC EXT") para calcular o custo de qualquer OP: matéria-prima, mão de obra e terceiros.</p>
+          <label class="upload-drop" id="uploadDrop">
+            <div id="uploadDropLabel">Clique ou arraste o XLSX aqui</div>
+            <input id="fileInput" type="file" accept=".xlsx,.xls">
+          </label>
+          <div class="upload-loading" id="uploadLoading" hidden>Processando planilha...</div>
+          <div class="upload-err" id="uploadErr" hidden></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="wrap" id="appWrap" hidden>
+
+      <div class="tabs" id="viewTabs"></div>
+
+      <section class="executive-brief" id="visao-geral">
+        <div class="brief-main">
+          <div class="brief-title">
+            <div>
+              <h2>Resumo Executivo</h2>
+              <p>Leitura direta para decisão: material e terceiros já vêm calculados do SIGER; mão de obra depende do preenchimento do R$/h por centro de custo.</p>
+            </div>
+            <span class="pill op" id="viewLabel">OP</span>
+          </div>
+          <div class="summary-grid" id="summaryRow"></div>
+        </div>
+        <div class="rate-panel">
+          <h2>Entrada da Diretoria</h2>
+          <p>Informe o valor hora por centro de custo. Os valores ficam salvos neste navegador (valem para todas as OPs) e podem ser exportados para apresentação.</p>
+          <div class="rate-actions">
+            <button class="btn export" id="exportCsvReport" type="button">Exportar CSV</button>
+            <button class="btn export secondary" id="exportPdfReport" type="button">Exportar PDF</button>
+          </div>
+          <div class="progress"><span id="rateProgressBar"></span></div>
+          <div class="progress-meta"><span id="rateProgressText">0 de 0 preenchidos</span><span id="rateMissingText">pendente</span></div>
+          <div class="status-line"><span class="status-dot" id="rateStatusDot"></span><span id="rateStatusText">Aguardando preenchimento dos R$/h.</span></div>
+        </div>
+      </section>
+
+      <div class="cards" id="cardsRow"></div>
+
+      <section class="analysis-panel" id="costAnalysisPanel">
+        <h2>Análise profunda dos custos</h2>
+        <div class="note">Leitura automática dos maiores ofensores e pontos de atenção para decisão.</div>
+        <div class="analysis-grid" id="costAnalysisGrid"></div>
+      </section>
+
+      <section id="opCompareSection" hidden>
+        <div class="sec-head">
+          <h2 id="compareTitle">Comparativo de OPs</h2>
+          <div class="note">Comparativo de custo total e de horas por centro de custo.</div>
+        </div>
+        <div class="dashboard-grid">
+          <div class="panel"><div class="chart-box"><canvas id="costCompareChart"></canvas></div></div>
+          <div class="ranking-panel">
+            <div class="ranking-title">
+              <h3>Ranking de custo por CC</h3>
+              <span>maior impacto</span>
+            </div>
+            <div class="ranking-list" id="costFunnel"></div>
+          </div>
+          <div class="panel"><div class="chart-box"><canvas id="barChart"></canvas></div></div>
+          <div class="panel"><div class="chart-box"><canvas id="pieChart"></canvas></div></div>
+        </div>
+      </section>
+
+      <section id="mao-obra">
+        <div class="sec-head">
+          <h2>Mão de Obra — Horas por Centro de Custo</h2>
+          <div class="note">Horas calculadas a partir do apontamento real (ACOMP PROD). Preencha o R$/h de cada CC (vale para todas as OPs).</div>
+        </div>
+        <div class="panel">
+          <table>
+            <thead><tr><th>Centro de Custo</th><th class="num">Horas</th><th class="num">R$ / hora</th><th class="num">Custo</th></tr></thead>
+            <tbody id="hoursBody"></tbody>
+            <tfoot><tr><td>Total</td><td class="num" id="hoursTotalH"></td><td></td><td class="num" id="hoursTotalCost"></td></tr></tfoot>
+          </table>
+        </div>
+      </section>
+
+      <section id="materiais">
+        <div class="sec-head">
+          <h2>Detalhamento de Matéria-Prima</h2>
+          <div class="note">Base: aba "ITENS OP CUSTO" do SIGER. Custo efetivo quando disponível, senão custo previsto.</div>
+        </div>
+        <div class="material-layout">
+          <div class="material-ranking">
+            <div class="material-ranking-title">
+              <h3>Ranking por posição</h3>
+              <span>maior custo</span>
+            </div>
+            <input class="material-search" id="materialSearch" type="search" placeholder="Buscar código ou descrição">
+            <div class="material-list" id="materialSubtabs"></div>
+          </div>
+          <div class="material-detail-panel" id="materialGroupContent"></div>
+        </div>
+      </section>
+
+      <section id="terceiros">
+        <div class="sec-head">
+          <h2>Terceiros — Serviços Externos</h2>
+          <div class="note">Base: aba "RET SERVC EXT" do SIGER. Custo = valor de mão de obra terceirizada pago no retorno.</div>
+        </div>
+        <div class="panel">
+          <div class="scroll-box" style="max-height:340px;">
+            <table>
+              <thead><tr><th>Item</th><th>Processo</th><th>Fornecedor</th><th class="num">Custo</th></tr></thead>
+              <tbody id="tercBody"></tbody>
+            </table>
+          </div>
+          <table style="margin-top:6px;"><tfoot><tr><td colspan="3">Total Terceiros</td><td class="num" id="tercTotal"></td></tr></tfoot></table>
+        </div>
+      </section>
+
+      <footer>
+        <span>Tecnodrill Ind. de Máquinas · PCP</span>
+        <span id="footerFile"></span>
+      </footer>
+    </div>
+  </main>
+</div>
+<div class="cc-tooltip" id="ccTooltip"></div>
+
+<script>
+/* ================= HELPERS DE PARSING (mesmo padrao do Painel PCP) ================= */
+function normCol(s){ return String(s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9]/g,""); }
+function buildIdx(headers){ var m={}; headers.forEach(function(h,i){ if(h!=null && String(h).trim()!=="") m[normCol(h)]=i; }); return m; }
+function findI(m){ for(var i=1;i<arguments.length;i++){ var n=normCol(arguments[i]); if(m[n]!==undefined) return m[n]; } return -1; }
+function normNum(v){
+  if(v===null||v===undefined||v==="") return 0;
+  if(typeof v==="number") return isNaN(v)?0:v;
+  var s=String(v).trim().replace(/[^\d.,\-]/g,"");
+  if(s===""||s==="-") return 0;
+  var n;
+  if(s.indexOf(",")>=0){ n=parseFloat(s.replace(/\./g,"").replace(",",".")); } else { n=parseFloat(s); }
+  return isNaN(n)?0:n;
+}
+function gs(r,i){ return i>=0 ? String(r[i]==null?"":r[i]).trim() : ""; }
+function fmt(v){ return "R$ " + (v||0).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+function htmlEscape(v){ return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function parseHora(v){
+  if(v===null || v===undefined || v==="") return null;
+  if(typeof v === "number"){
+    /* SheetJS com raw:true devolve hora como fracao do dia (ex: 10:31:00 = 0.4381944...) */
+    var frac = v - Math.floor(v);
+    return frac*24;
+  }
+  var s = String(v).trim();
+  var m = s.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+  if(!m) return null;
+  return parseInt(m[1],10) + parseInt(m[2],10)/60 + (m[3]?parseInt(m[3],10)/3600:0);
+}
+
+function sheetRows(wb, name){
+  var ws = wb.Sheets[name];
+  if(!ws) return [];
+  return XLSX.utils.sheet_to_json(ws, {header:1, raw:true, defval:""});
+}
+
+/* ================= PARSERS ================= */
+function parseItens(rows){
+  if(!rows.length) return [];
+  var cm = buildIdx(rows[0]);
+  var iOp=findI(cm,"op"), iSeq=findI(cm,"seqop","seq.op"), iPos=findI(cm,"descrposop","descr.pos.op"),
+      iPCode=findI(cm,"produto"), iPRef=findI(cm,"refproduto","ref produto"), iPDesc=findI(cm,"descprod","desc.prod"),
+      iPCusto=findI(cm,"custoaquisprod","custo aquis prod"), iQtdProd=findI(cm,"qtdproduzir"),
+      iPUn=iPCusto>0?iPCusto-1:-1, /* coluna "UN" do produto pai: aparece duas vezes no cabecalho, a do pai fica logo antes de "Custo aquis prod" */
+      iICode=findI(cm,"codorditem","codproditem","cod.prod.item"), iIDesc=findI(cm,"descitem","desc.item"),
+      iIRef=findI(cm,"refitem","ref item"), iICusto=findI(cm,"custoaquisitem","custo aquis item"),
+      iQtdPrev=findI(cm,"consprevistoitemop","cons.previsto item op"), iCustoPrev=findI(cm,"custoprevistoitemtotal","custo previsto item total"),
+      iQtdEf=findI(cm,"qtdefetiva","qtd.efetiva"), iCustoEf=findI(cm,"custoefetivototal","custo efetivo total"),
+      iCc=findI(cm,"centcustoitemop","cent.custo item op"), iCcDesc=findI(cm,"ccitem","cc item"),
+      iMov=findI(cm,"movimentaestoque","movimenta estoque");
+  var out=[];
+  for(var r=1;r<rows.length;r++){
+    var row = rows[r];
+    var op = gs(row,iOp);
+    if(!op) continue;
+    out.push({
+      op:op, seqOp:gs(row,iSeq), posDesc:gs(row,iPos),
+      parentCode:gs(row,iPCode), parentRef:gs(row,iPRef), parentDesc:gs(row,iPDesc), parentUn:gs(row,iPUn),
+      parentCusto:normNum(row[iPCusto]), qtdProduzir:normNum(row[iQtdProd]),
+      itemCode:gs(row,iICode), itemDesc:gs(row,iIDesc), itemRef:gs(row,iIRef), itemCusto:normNum(row[iICusto]),
+      qtdPrevista:normNum(row[iQtdPrev]), custoPrevisto:normNum(row[iCustoPrev]),
+      qtdEfetiva:normNum(row[iQtdEf]), custoEfetivo:normNum(row[iCustoEf]),
+      cc:gs(row,iCc), ccDesc:gs(row,iCcDesc), movimenta:gs(row,iMov)
+    });
+  }
+  return out;
+}
+function parseDateSort(v){
+  if(v===null || v===undefined || v==="") return 0;
+  if(typeof v==="number") return v; /* serial de data do Excel, ja ordenavel */
+  var s = String(v).trim();
+  var m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+  if(m){ var dd=+m[1], mm=+m[2], yy=+m[3]; if(yy<100) yy+=2000; return yy*10000+mm*100+dd; }
+  var m2 = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if(m2) return (+m2[1])*10000+(+m2[2])*100+(+m2[3]);
+  return 0;
+}
+function parseAcomp(rows){
+  if(!rows.length) return [];
+  var cm = buildIdx(rows[0]);
+  var iData=findI(cm,"dtapont","dt.apont"), iOper=findI(cm,"operador"), iDescOper=findI(cm,"descoper","desc oper"),
+      iCc=findI(cm,"ccusto","c.custo"), iCcDesc=findI(cm,"desccc","desc cc"), iOp=findI(cm,"ordpro","ord.pro"),
+      iSeq=findI(cm,"seqop","seq.op"), iRef=findI(cm,"referencia"), iDesc=findI(cm,"desccompleta","desc.completa"),
+      iQtd=findI(cm,"qtdproduz","qtd.produz"), iIni=findI(cm,"hriniprod","hr.ini.prod"), iFim=findI(cm,"hrfinprod","hr.fin.prod");
+  var out=[];
+  for(var r=1;r<rows.length;r++){
+    var row = rows[r];
+    var op = gs(row,iOp);
+    if(!op) continue;
+    var hIni = parseHora(row[iIni]), hFim = parseHora(row[iFim]);
+    var horas = 0;
+    if(hIni!=null && hFim!=null){ horas = hFim - hIni; if(horas<0) horas = 0; }
+    out.push({
+      data:gs(row,iData), dataSort:parseDateSort(row[iData]), operador:gs(row,iOper), descOper:gs(row,iDescOper),
+      cc:gs(row,iCc), ccDesc:gs(row,iCcDesc), op:op, seqOp:gs(row,iSeq),
+      referencia:gs(row,iRef), desc:gs(row,iDesc), qtdProduz:normNum(row[iQtd]), horas:horas
+    });
+  }
+  return out;
+}
+function parseTerc(rows){
+  if(!rows.length) return [];
+  var cm = buildIdx(rows[0]);
+  var iDtRet=findI(cm,"dtret","dt.ret"), iRemessa=findI(cm,"remessa"), iDtRem=findI(cm,"dtrem","dt.rem"),
+      iCc=findI(cm,"ccusto","c.custo"), iCcDesc=findI(cm,"desccc","desc cc"), iFornCod=findI(cm,"fornecedor"),
+      iFornNome=findI(cm,"razaosocial","razao social"), iProdPronto=findI(cm,"prodpronto","prod.pronto"),
+      iRef=findI(cm,"referencia"), iDesc=findI(cm,"desccompleta","desc.completa"), iQtdRem=findI(cm,"qtdremetida","qtd.remetida"),
+      iNf=findI(cm,"nronfretorno","nro.nf retorno"), iOp=findI(cm,"nroop","nro.op"), iSeq=findI(cm,"seqop","seq.op"),
+      iValor=findI(cm,"vlrmaoobra","vlr.mao obra"), iSit=findI(cm,"descrsituacao","descr.situacao"), iQtdTot=findI(cm,"qtdtotretornar","qtd.tot.retornar");
+  var out=[];
+  for(var r=1;r<rows.length;r++){
+    var row = rows[r];
+    var op = gs(row,iOp);
+    if(!op) continue;
+    out.push({
+      dtRet:gs(row,iDtRet), remessa:gs(row,iRemessa), dtRem:gs(row,iDtRem),
+      cc:gs(row,iCc), ccDesc:gs(row,iCcDesc), fornecedorCod:gs(row,iFornCod), fornecedorNome:gs(row,iFornNome),
+      prodPronto:gs(row,iProdPronto), referencia:gs(row,iRef), desc:gs(row,iDesc), qtdRemetida:normNum(row[iQtdRem]),
+      nfRetorno:gs(row,iNf), op:op, seqOp:gs(row,iSeq), valor:normNum(row[iValor]), situacao:gs(row,iSit),
+      qtdTotRetornar:normNum(row[iQtdTot])
+    });
+  }
+  return out;
+}
+
+/* ================= ESTADO ================= */
+var ITENS=[], ACOMP=[], TERC=[], OPS=[];
+var opA=null, opB=null, currentView='A';
+var RATE_STORAGE_KEY = 'tecnodrill_custo_rates_v1';
+var rates = loadRates();
+var acompByRef = {};
+
+/* ================= TEMPOS POR CC (hover em CJ/componente) =================
+   CJ (tem posicao propria/Seq.OP nesta OP): tempo = apontamento real desta OP.
+   PC (sem posicao propria): tempo = media das ultimas 2 OPs (por data de apontamento)
+   em que essa referencia foi fabricada, cruzando Ref.Item/Ref.Produto (ITENS OP CUSTO)
+   com Referencia (ACOMP PROD). */
+function buildAcompIndex(){
+  acompByRef = {};
+  ACOMP.forEach(function(r){
+    if(!r.referencia) return;
+    (acompByRef[r.referencia] = acompByRef[r.referencia] || []).push(r);
+  });
+}
+function ccTimeInfo(ref, op, isSub){
+  if(!ref) return {mode:'none'};
+  var rows = acompByRef[ref] || [];
+  if(isSub){
+    var mine = rows.filter(function(r){ return r.op===op; });
+    if(!mine.length) return {mode:'none-exact', op:op};
+    var byCc = {};
+    mine.forEach(function(r){ var k=r.ccDesc||r.cc||'Sem CC'; byCc[k]=(byCc[k]||0)+r.horas; });
+    return {mode:'exact', op:op, ccs:byCc};
+  }
+  var opDate = {};
+  rows.forEach(function(r){ if(opDate[r.op]===undefined || r.dataSort>opDate[r.op]) opDate[r.op]=r.dataSort; });
+  var opList = Object.keys(opDate).sort(function(a,b){ return opDate[b]-opDate[a]; });
+  if(!opList.length) return {mode:'none'};
+  var lastTwo = opList.slice(0,2);
+  var sums = {};
+  lastTwo.forEach(function(o){
+    var byCcOp = {};
+    rows.filter(function(r){ return r.op===o; }).forEach(function(r){ var k=r.ccDesc||r.cc||'Sem CC'; byCcOp[k]=(byCcOp[k]||0)+r.horas; });
+    Object.keys(byCcOp).forEach(function(cc){ sums[cc]=(sums[cc]||0)+byCcOp[cc]; });
+  });
+  var avgCcs = {};
+  Object.keys(sums).forEach(function(cc){ avgCcs[cc] = sums[cc]/lastTwo.length; });
+  return {mode:'avg', ops:lastTwo, ccs:avgCcs};
+}
+function ccTooltipHtml(label, isSub, info){
+  var title = (isSub?'CJ · ':'Componente · ')+htmlEscape(label||'');
+  var body;
+  if(info.mode==='exact'){
+    body = '<div class="tt-note">Apontamento real desta OP '+htmlEscape(info.op)+'.</div>' +
+      Object.entries(info.ccs).sort(function(a,b){ return b[1]-a[1]; }).map(function(e){
+        return '<div class="tt-row"><span>'+htmlEscape(e[0])+'</span><b>'+e[1].toFixed(2)+' h</b></div>';
+      }).join('');
+  } else if(info.mode==='avg'){
+    body = '<div class="tt-note">Media das ultimas '+info.ops.length+' OP(s) em que este item foi fabricado: OP '+info.ops.map(htmlEscape).join(', OP ')+'.</div>' +
+      Object.entries(info.ccs).sort(function(a,b){ return b[1]-a[1]; }).map(function(e){
+        return '<div class="tt-row"><span>'+htmlEscape(e[0])+'</span><b>'+e[1].toFixed(2)+' h (media)</b></div>';
+      }).join('');
+  } else if(info.mode==='none-exact'){
+    body = '<div class="tt-note">Sem apontamento (ACOMP PROD) para este item nesta OP.</div>';
+  } else {
+    body = '<div class="tt-note">Sem historico de apontamento para este item.</div>';
+  }
+  return '<div class="tt-title">'+title+'</div>'+body;
+}
+function showCcTooltip(el, ref, op, isSub, label){
+  var info = ccTimeInfo(ref, op, isSub);
+  var tt = $('#ccTooltip');
+  tt.innerHTML = ccTooltipHtml(label, isSub, info);
+  tt.classList.add('show');
+  var r = el.getBoundingClientRect();
+  var ttW = tt.offsetWidth || 280;
+  tt.style.left = Math.max(8, Math.min(r.left, window.innerWidth - ttW - 8)) + 'px';
+  tt.style.top = (r.bottom + 6) + 'px';
+}
+function hideCcTooltip(){ $('#ccTooltip').classList.remove('show'); }
+function bindCcHover(el, ref, op, isSub, label){
+  el.addEventListener('mouseenter', function(){ showCcTooltip(el, ref, op, isSub, label); });
+  el.addEventListener('mouseleave', hideCcTooltip);
+}
+
+function loadRates(){ try{ return JSON.parse(localStorage.getItem(RATE_STORAGE_KEY)||'{}'); }catch(e){ return {}; } }
+function saveRates(){ localStorage.setItem(RATE_STORAGE_KEY, JSON.stringify(rates)); }
+
+var $ = function(s){ return document.querySelector(s); };
+
+/* ================= CARREGAMENTO DO ARQUIVO ================= */
+function handleFile(file){
+  $('#uploadErr').hidden = true;
+  $('#uploadLoading').hidden = false;
+  file.arrayBuffer().then(function(buf){
+    try{
+      var wb = XLSX.read(new Uint8Array(buf), {type:'array', cellDates:false});
+      var itensRows = sheetRows(wb, 'ITENS OP CUSTO');
+      var acompRows = sheetRows(wb, 'ACOMP PROD');
+      var tercRows = sheetRows(wb, 'RET SERVC EXT');
+      if(!itensRows.length) throw new Error('Aba "ITENS OP CUSTO" nao encontrada ou vazia.');
+      ITENS = parseItens(itensRows);
+      ACOMP = parseAcomp(acompRows);
+      TERC = parseTerc(tercRows);
+      buildAcompIndex();
+      buildOpsList();
+      $('#uploadLoading').hidden = true;
+      $('#uploadWrap').hidden = true;
+      $('#appWrap').hidden = false;
+      $('#topbarActions').hidden = false;
+      $('#footerFile').textContent = file.name;
+      $('#scopeLabel').textContent = OPS.length + ' OPs carregadas';
+      if(OPS.length){ selecionarOpA(OPS[0].op); }
+    }catch(e){
+      $('#uploadLoading').hidden = true;
+      $('#uploadErr').hidden = false;
+      $('#uploadErr').textContent = 'Erro ao processar planilha: ' + e.message;
+    }
+  }).catch(function(e){
+    $('#uploadLoading').hidden = true;
+    $('#uploadErr').hidden = false;
+    $('#uploadErr').textContent = 'Erro ao ler arquivo: ' + e.message;
+  });
+}
+function buildOpsList(){
+  var m = {};
+  ITENS.forEach(function(r){
+    if(!m[r.op]) m[r.op] = {op:r.op, desc:r.parentDesc, status:r.posDesc};
+  });
+  OPS = Object.values(m).map(function(o){ o.material = materialTotal(o.op); return o; })
+    .sort(function(a,b){ return b.material - a.material; });
+}
+
+/* ================= AGREGACOES ================= */
+/* Codigos de produto que tem posicao propria (Seq.OP) nesta OP: sao sub-conjuntos ja
+   "explodidos" em outra posicao. O custo deles deve ser contado uma unica vez, na
+   propria posicao onde aparecem como insumo-folha (parafusos, chapas etc.) - nunca
+   de novo no nivel onde sao consumidos como sub-conjunto pronto, senao duplica o total. */
+function subassemblyCodes(op){
+  var set = {};
+  ITENS.forEach(function(r){ if(r.op===op && r.parentCode) set[r.parentCode]=true; });
+  return set;
+}
+function materialTotal(op){
+  var subs = subassemblyCodes(op);
+  return ITENS.filter(function(r){ return r.op===op && r.itemCode && !subs[r.itemCode]; })
+    .reduce(function(s,r){ return s + (r.custoEfetivo || r.custoPrevisto || 0); },0);
+}
+function materialTree(op){
+  var subs = subassemblyCodes(op);
+  var groups = {};
+  ITENS.filter(function(r){ return r.op===op; }).forEach(function(r){
+    var key = r.seqOp + '|' + r.parentCode;
+    if(!groups[key]) groups[key] = {op:op, seqOp:r.seqOp, code:r.parentCode, ref:r.parentRef, desc:r.parentDesc, un:r.parentUn, total:0, leaves:[]};
+    var custo = r.custoEfetivo || r.custoPrevisto || 0;
+    if(!(r.itemCode && subs[r.itemCode])) groups[key].total += custo;
+    if(r.itemCode){
+      groups[key].leaves.push({code:r.itemCode, ref:r.itemRef, desc:r.itemDesc, qtd:(r.qtdEfetiva||r.qtdPrevista), custo:custo, cc:r.ccDesc, isSub:!!subs[r.itemCode]});
+    }
+  });
+  return Object.values(groups).sort(function(a,b){ return b.total-a.total; });
+}
+function horasPorCc(op){
+  var m = {};
+  ACOMP.filter(function(r){ return r.op===op; }).forEach(function(r){
+    var key = r.ccDesc || r.cc || 'Sem CC';
+    if(!m[key]) m[key] = 0;
+    m[key] += r.horas;
+  });
+  return m;
+}
+function moTotal(op){
+  var h = horasPorCc(op);
+  return Object.entries(h).reduce(function(s,e){ return s + e[1]*(rates[e[0]]||0); },0);
+}
+function tercRowsForOp(op){
+  return TERC.filter(function(r){ return r.op===op; });
+}
+function tercTotal(op){
+  return tercRowsForOp(op).reduce(function(s,r){ return s + r.valor; },0);
+}
+function allCcNames(){
+  var set = {};
+  ACOMP.forEach(function(r){ set[r.ccDesc||r.cc||'Sem CC']=1; });
+  return Object.keys(set).sort();
+}
+
+/* ================= SELECAO DE OP ================= */
+function selecionarOpA(op){ opA = op; if(opB===op) opB=null; refreshAfterOpChange(); }
+function selecionarOpB(op){ opB = (op===opA) ? null : op; refreshAfterOpChange(); }
+function refreshAfterOpChange(){
+  $('#opSearchA').value = opA || '';
+  $('#opSearchB').value = opB || '';
+  renderTabs();
+  currentView = 'A';
+  renderAll();
+}
+function renderTabs(){
+  var wrap = $('#viewTabs');
+  if(!opB){ wrap.innerHTML=''; return; }
+  wrap.innerHTML =
+    '<div class="tab' + (currentView==='geral'?' active':'') + '" data-v="geral">Painel Geral<small>OP ' + htmlEscape(opA) + ' + OP ' + htmlEscape(opB) + '</small></div>' +
+    '<div class="tab' + (currentView==='A'?' active':'') + '" data-v="A">OP ' + htmlEscape(opA) + '<small>Individual</small></div>' +
+    '<div class="tab' + (currentView==='B'?' active':'') + '" data-v="B">OP ' + htmlEscape(opB) + '<small>Individual</small></div>';
+  wrap.querySelectorAll('.tab').forEach(function(t){
+    t.addEventListener('click', function(){ currentView = t.dataset.v; renderAll(); renderTabs(); });
+  });
+}
+function opsInView(){
+  if(!opB) return [opA];
+  if(currentView==='geral') return [opA,opB];
+  if(currentView==='A') return [opA];
+  return [opB];
+}
+
+/* ================= RENDER ================= */
+function renderAll(){
+  renderCards();
+  renderExecutiveBrief();
+  renderCostAnalysis();
+  renderHours();
+  renderMaterialSubtabs();
+  renderTerc();
+  renderCompareSection();
+  $('#viewLabel').textContent = opB ? (currentView==='geral' ? 'Painel Geral' : 'OP '+(currentView==='A'?opA:opB)) : 'OP '+opA;
+}
+function totalsForView(){
+  var ops = opsInView();
+  var mp=0, terc=0, mo=0;
+  ops.forEach(function(op){ mp += materialTotal(op); terc += tercTotal(op); });
+  var horasAgg = {};
+  ops.forEach(function(op){
+    var h = horasPorCc(op);
+    Object.entries(h).forEach(function(e){ horasAgg[e[0]] = (horasAgg[e[0]]||0) + e[1]; });
+  });
+  mo = Object.entries(horasAgg).reduce(function(s,e){ return s + e[1]*(rates[e[0]]||0); },0);
+  return {mp:mp, terc:terc, mo:mo, total:mp+terc+mo, horas:horasAgg};
+}
+function rateStats(){
+  var ccs = allCcNames();
+  var filled = ccs.filter(function(cc){ return (rates[cc]||0)>0; }).length;
+  return {total:ccs.length, filled:filled, missing:ccs.length-filled, pct: ccs.length ? (filled/ccs.length*100) : 0};
+}
+function renderCards(){
+  var t = totalsForView();
+  var moDefined = Object.values(rates).some(function(r){ return r>0; });
+  $('#cardsRow').innerHTML =
+    '<div class="card"><div class="lbl">Matéria-Prima</div><div class="val">'+fmt(t.mp)+'</div></div>' +
+    '<div class="card"><div class="lbl">Terceiros</div><div class="val">'+fmt(t.terc)+'</div></div>' +
+    '<div class="card"><div class="lbl">Mão de Obra '+(moDefined?'':'<span class="pill" style="margin-left:6px;">preencher R$/h</span>')+'</div><div class="val '+(moDefined?'':'pending')+'">'+(moDefined?fmt(t.mo):'defina o R$/h')+'</div></div>' +
+    '<div class="card total"><div class="lbl">Custo Total</div><div class="val '+(moDefined?'':'pending')+'">'+(moDefined?fmt(t.total):'defina o R$/h')+'</div></div>';
+}
+function renderExecutiveBrief(){
+  var stats = rateStats();
+  var t = totalsForView();
+  var topCc = Object.entries(t.horas).sort(function(a,b){ return b[1]-a[1]; })[0];
+  var totalHoras = Object.values(t.horas).reduce(function(s,v){ return s+v; },0);
+  var moShare = t.total>0 ? (t.mo/t.total*100) : 0;
+  $('#summaryRow').innerHTML =
+    '<div class="metric"><div class="k">Total projetado</div><div class="v">'+(stats.filled?fmt(t.total):'Aguardando')+'</div><div class="s">'+(stats.filled?(moShare.toFixed(1)+'% do total em mao de obra'):'Preencha ao menos um R$/h para abrir o custo final.')+'</div></div>' +
+    '<div class="metric"><div class="k">Horas produtivas</div><div class="v">'+totalHoras.toFixed(1)+' h</div><div class="s">'+(topCc?('Maior carga: '+htmlEscape(topCc[0])+' ('+topCc[1].toFixed(1)+' h).'):'Sem apontamento.')+'</div></div>' +
+    '<div class="metric"><div class="k">Status R$/h</div><div class="v">'+stats.filled+'/'+stats.total+'</div><div class="s">'+(stats.missing?(stats.missing+' centro(s) sem taxa definida.'):'Todos os centros preenchidos.')+'</div></div>';
+  $('#rateProgressBar').style.width = stats.pct+'%';
+  $('#rateProgressText').textContent = stats.filled+' de '+stats.total+' preenchidos';
+  $('#rateMissingText').textContent = stats.missing ? (stats.missing+' pendente(s)') : 'completo';
+  $('#rateStatusText').textContent = stats.missing ? 'Complete os centros pendentes para apresentar o custo total fechado.' : 'Todos os R$/h foram informados. Custo final pronto para apresentacao.';
+  $('#rateStatusDot').classList.toggle('ok', stats.missing===0);
+}
+function renderCostAnalysis(){
+  var t = totalsForView();
+  var matShare = t.total ? (t.mp/t.total*100).toFixed(1) : '0.0';
+  var moShare = t.total ? (t.mo/t.total*100).toFixed(1) : '0.0';
+  var ops = opsInView();
+  var trees = [];
+  ops.forEach(function(op){ trees = trees.concat(materialTree(op)); });
+  trees.sort(function(a,b){ return b.total-a.total; });
+  var topGroup = trees[0];
+  var topCc = Object.entries(t.horas).map(function(e){ return {cc:e[0], horas:e[1], custo:e[1]*(rates[e[0]]||0)}; }).sort(function(a,b){ return b.custo-a.custo || b.horas-a.horas; })[0];
+  $('#costAnalysisGrid').innerHTML =
+    '<div class="analysis-item"><strong>Matéria-prima domina o custo</strong><span>'+fmt(t.mp)+' representam '+matShare+'% do total. '+(topGroup?('Posicao mais cara: '+htmlEscape(topGroup.desc||topGroup.code)+' ('+fmt(topGroup.total)+').'):'')+'</span></div>' +
+    '<div class="analysis-item"><strong>Terceiros</strong><span>'+fmt(t.terc)+' pagos a fornecedores externos nas OP(s) selecionada(s).</span></div>' +
+    '<div class="analysis-item"><strong>Mão de obra</strong><span>'+fmt(t.mo)+' ('+moShare+'% do total). '+(topCc?('Maior carga: '+htmlEscape(topCc.cc)+' com '+topCc.horas.toFixed(2)+' h'+(topCc.custo>0?(' e '+fmt(topCc.custo)):' aguardando R$/h')+'.'):'')+'</span></div>';
+}
+function renderHours(){
+  var t = totalsForView();
+  var body = $('#hoursBody');
+  var rows = Object.entries(t.horas).sort(function(a,b){ return b[1]-a[1]; });
+  body.innerHTML = rows.map(function(e){
+    var cc=e[0], h=e[1], rate=rates[cc]||0, custo=h*rate;
+    return '<tr class="'+(rate>0?'':'missing-rate')+'"><td>'+htmlEscape(cc)+'</td><td class="num">'+h.toFixed(2)+' h</td>' +
+      '<td class="num"><input class="rate-input" type="number" min="0" step="0.01" placeholder="0,00" value="'+(rates[cc]!=null?rates[cc]:'')+'" data-cc="'+htmlEscape(cc)+'"></td>' +
+      '<td class="num" data-cost-cell>'+fmt(custo)+'</td></tr>';
+  }).join('');
+  var totalH = rows.reduce(function(s,e){ return s+e[1]; },0);
+  var totalCost = rows.reduce(function(s,e){ return s+e[1]*(rates[e[0]]||0); },0);
+  $('#hoursTotalH').textContent = totalH.toFixed(2)+' h';
+  $('#hoursTotalCost').textContent = fmt(totalCost);
+  body.querySelectorAll('.rate-input').forEach(function(inp){
+    inp.addEventListener('input', function(e){
+      var cc = e.target.dataset.cc;
+      var v = parseFloat(String(e.target.value).replace(',','.'));
+      rates[cc] = isNaN(v) ? 0 : v;
+      saveRates();
+      renderAll();
+    });
+  });
+}
+var materialSearchTerm = '';
+var currentGroupKey = null;
+function renderMaterialSubtabs(){
+  var wrap = $('#materialSubtabs');
+  var ops = opsInView();
+  var trees = [];
+  ops.forEach(function(op){ trees = trees.concat(materialTree(op)); });
+  var search = materialSearchTerm.trim().toLowerCase();
+  var filtered = trees.filter(function(g){
+    if(!search) return true;
+    return String(g.code).toLowerCase().includes(search) || String(g.desc).toLowerCase().includes(search) ||
+      g.leaves.some(function(l){ return String(l.code).toLowerCase().includes(search) || String(l.desc).toLowerCase().includes(search); });
+  }).sort(function(a,b){ return b.total-a.total; });
+  var max = Math.max.apply(null, filtered.map(function(g){ return g.total; }).concat([1]));
+  wrap.innerHTML = filtered.map(function(g,i){
+    var key = g.seqOp+'|'+g.code;
+    var share = max>0 ? (g.total/max*100) : 0;
+    return '<button type="button" class="material-rank-item'+(key===currentGroupKey?' active':'')+'" style="--share:'+share+'%" data-key="'+htmlEscape(key)+'">' +
+      '<span>'+(i+1)+'</span>' +
+      '<span class="material-rank-main"><strong>'+htmlEscape(g.desc||g.code)+'</strong><small>Cod. '+htmlEscape(g.code)+' · Seq '+htmlEscape(g.seqOp)+' · '+g.leaves.length+' insumo(s)</small></span>' +
+      '<span class="material-rank-value"><strong>'+fmt(g.total)+'</strong></span>' +
+      '</button>';
+  }).join('') || '<div class="subtle" style="padding:10px;">Nenhum item encontrado.</div>';
+  wrap.querySelectorAll('.material-rank-item').forEach(function(btn,i){
+    btn.addEventListener('click', function(){ currentGroupKey = btn.dataset.key; renderMaterialSubtabs(); renderMaterialContent(filtered); });
+    var g = filtered[i];
+    if(g) bindCcHover(btn, g.ref, g.op, true, g.desc||g.code);
+  });
+  renderMaterialContent(filtered);
+}
+function renderMaterialContent(filtered){
+  var content = $('#materialGroupContent');
+  var g = filtered.find(function(x){ return (x.seqOp+'|'+x.code)===currentGroupKey; }) || filtered[0];
+  if(!g){ content.innerHTML = '<div class="material-empty">Selecione uma posicao para ver o detalhamento.</div>'; return; }
+  var hasSub = g.leaves.some(function(l){ return l.isSub; });
+  var leavesSorted = g.leaves.slice().sort(function(a,b){ return b.custo-a.custo; });
+  content.innerHTML =
+    '<div class="material-detail-head"><h3 id="materialDetailTitle">'+htmlEscape(g.desc||g.code)+'</h3><span class="cost">'+fmt(g.total)+'</span></div>' +
+    '<div class="subtle" style="margin-bottom:10px;">Cod. '+htmlEscape(g.code)+' · Ref. '+htmlEscape(g.ref)+' · Seq.OP '+htmlEscape(g.seqOp)+' · '+g.leaves.length+' insumo(s)</div>' +
+    (hasSub ? '<div class="subtle" style="margin-bottom:10px;">Itens marcados "sub-conjunto" tem posicao propria nesta OP: o custo deles ja esta contado la, e nao entra no total desta posicao (evita duplicar).</div>' : '') +
+    leavesSorted.map(function(l,i){
+      return '<div class="tree-leaf" data-leaf-i="'+i+'"><span class="tree-code">'+htmlEscape(l.ref||l.code)+'</span><span class="tree-desc">'+htmlEscape(l.desc)+(l.isSub?' <span class="pill warn">sub-conjunto</span>':'')+'</span>' +
+        '<span class="tree-num">'+(l.qtd!=null?l.qtd:'')+'</span><span class="tree-num '+(l.isSub?'muted':'tree-total')+'">'+fmt(l.custo)+(l.isSub?' *':'')+'</span></div>';
+    }).join('');
+  bindCcHover($('#materialDetailTitle'), g.ref, g.op, true, g.desc||g.code);
+  content.querySelectorAll('.tree-leaf').forEach(function(el){
+    var l = leavesSorted[+el.dataset.leafI];
+    if(l) bindCcHover(el, l.ref||l.code, g.op, l.isSub, l.desc);
+  });
+}
+function renderTerc(){
+  var ops = opsInView();
+  var rows = [];
+  ops.forEach(function(op){ rows = rows.concat(tercRowsForOp(op)); });
+  rows.sort(function(a,b){ return b.valor-a.valor; });
+  $('#tercBody').innerHTML = rows.map(function(r){
+    return '<tr><td>'+htmlEscape(r.desc)+'<div class="subtle">'+htmlEscape(r.referencia)+'</div></td><td>'+htmlEscape(r.ccDesc)+'</td><td>'+htmlEscape(r.fornecedorNome)+'</td><td class="num">'+fmt(r.valor)+'</td></tr>';
+  }).join('') || '<tr><td colspan="4" class="subtle">Sem retornos de terceiros para esta selecao.</td></tr>';
+  $('#tercTotal').textContent = fmt(rows.reduce(function(s,r){ return s+r.valor; },0));
+}
+
+/* ================= COMPARATIVO ================= */
+var chartPie=null, chartBar=null, chartCompare=null;
+function renderCompareSection(){
+  var sec = $('#opCompareSection');
+  if(!opB){ sec.hidden = true; return; }
+  sec.hidden = false;
+  $('#compareTitle').textContent = 'OP '+opA+' × OP '+opB;
+  var tA = (function(){ var save=currentView; currentView='A'; var r=totalsForView(); currentView=save; return r; })();
+  var tB = (function(){ var save=currentView; currentView='B'; var r=totalsForView(); currentView=save; return r; })();
+
+  if(chartCompare) chartCompare.destroy();
+  chartCompare = new Chart($('#costCompareChart').getContext('2d'), {
+    type:'bar',
+    data:{ labels:['OP '+opA,'OP '+opB], datasets:[
+      {label:'Matéria-prima', data:[tA.mp,tB.mp], backgroundColor:'#E8000D'},
+      {label:'Terceiros', data:[tA.terc,tB.terc], backgroundColor:'#f6c453'},
+      {label:'Mão de obra', data:[tA.mo,tB.mo], backgroundColor:'#20c997'}
+    ]},
+    options:{ responsive:true, maintainAspectRatio:false, scales:{ x:{stacked:true, ticks:{color:'#a8afbc'}, grid:{color:'#23262c'}}, y:{stacked:true, ticks:{color:'#a8afbc'}, grid:{color:'#23262c'}} }, plugins:{ legend:{labels:{color:'#f5f7fb'}} } }
+  });
+
+  var ccAll = {};
+  Object.keys(tA.horas).concat(Object.keys(tB.horas)).forEach(function(cc){ ccAll[cc]=1; });
+  var ccNames = Object.keys(ccAll);
+  if(chartBar) chartBar.destroy();
+  chartBar = new Chart($('#barChart').getContext('2d'), {
+    type:'bar',
+    data:{ labels:ccNames, datasets:[
+      {label:'Horas OP '+opA, data:ccNames.map(function(cc){ return tA.horas[cc]||0; }), backgroundColor:'#E8000D'},
+      {label:'Horas OP '+opB, data:ccNames.map(function(cc){ return tB.horas[cc]||0; }), backgroundColor:'#555b66'}
+    ]},
+    options:{ responsive:true, maintainAspectRatio:false, indexAxis:'y', scales:{ x:{ticks:{color:'#a8afbc'},grid:{color:'#23262c'}}, y:{ticks:{color:'#a8afbc'},grid:{color:'#23262c'}} }, plugins:{ legend:{labels:{color:'#f5f7fb'}} } }
+  });
+
+  var totalGeral = tA.total + tB.total;
+  if(chartPie) chartPie.destroy();
+  chartPie = new Chart($('#pieChart').getContext('2d'), {
+    type:'doughnut',
+    data:{ labels:['Matéria-prima','Terceiros','Mão de obra'], datasets:[{ data:[tA.mp+tB.mp, tA.terc+tB.terc, tA.mo+tB.mo], backgroundColor:['#E8000D','#f6c453','#20c997'] }] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{labels:{color:'#f5f7fb'}} } }
+  });
+
+  var funnelRows = ccNames.map(function(cc){
+    var h = (tA.horas[cc]||0) + (tB.horas[cc]||0);
+    return {cc:cc, horas:h, custo:h*(rates[cc]||0)};
+  }).sort(function(a,b){ return b.custo-a.custo || b.horas-a.horas; });
+  var maxH = Math.max.apply(null, funnelRows.map(function(r){ return r.horas; }).concat([1]));
+  $('#costFunnel').innerHTML = funnelRows.map(function(r,i){
+    return '<div class="ranking-row" style="--share:'+(r.horas/maxH*100)+'%"><span class="rank">'+(i+1)+'</span>' +
+      '<span class="ranking-cc"><strong>'+htmlEscape(r.cc)+'</strong><small>'+r.horas.toFixed(1)+' h</small></span>' +
+      '<span class="ranking-value"><strong>'+(r.custo>0?fmt(r.custo):'--')+'</strong></span></div>';
+  }).join('');
+}
+
+/* ================= BUSCA DE OP ================= */
+function setupOpPicker(inputSel, listSel, onPick){
+  var input = $(inputSel), list = $(listSel);
+  function renderList(term){
+    var t = (term||'').trim().toLowerCase();
+    var items = OPS.filter(function(o){ return !t || String(o.op).includes(t) || String(o.desc).toLowerCase().includes(t); }).slice(0,40);
+    list.innerHTML = items.map(function(o){
+      return '<div class="op-picker-item" data-op="'+htmlEscape(o.op)+'"><b>OP '+htmlEscape(o.op)+'</b><small>'+htmlEscape(o.desc||'')+' · '+htmlEscape(o.status||'')+'</small></div>';
+    }).join('') || '<div class="op-picker-item subtle">Nenhuma OP encontrada</div>';
+    list.querySelectorAll('.op-picker-item[data-op]').forEach(function(it){
+      it.addEventListener('mousedown', function(e){ e.preventDefault(); onPick(it.dataset.op); list.classList.remove('open'); });
+    });
+  }
+  input.addEventListener('focus', function(){ renderList(input.value); list.classList.add('open'); });
+  input.addEventListener('input', function(){ renderList(input.value); list.classList.add('open'); });
+  input.addEventListener('blur', function(){ setTimeout(function(){ list.classList.remove('open'); },120); });
+}
+
+/* ================= EXPORTACAO ================= */
+function csvCell(v){ var s = String(v==null?'':v); if(/[",;\n]/.test(s)) s = '"'+s.replace(/"/g,'""')+'"'; return s; }
+function exportCsv(){
+  var t = totalsForView();
+  var lines = [];
+  lines.push(['Categoria','Descricao','Valor'].join(';'));
+  lines.push(['Materia-prima','Total',t.mp.toFixed(2)].join(';'));
+  lines.push(['Terceiros','Total',t.terc.toFixed(2)].join(';'));
+  lines.push(['Mao de obra','Total',t.mo.toFixed(2)].join(';'));
+  lines.push(['Custo Total','',t.total.toFixed(2)].join(';'));
+  lines.push([]);
+  lines.push(['Centro de Custo','Horas','R$/h','Custo'].join(';'));
+  Object.entries(t.horas).forEach(function(e){
+    lines.push([csvCell(e[0]), e[1].toFixed(2), (rates[e[0]]||0).toFixed(2), (e[1]*(rates[e[0]]||0)).toFixed(2)].join(';'));
+  });
+  var blob = new Blob(["﻿"+lines.join('\n')], {type:'text/csv;charset=utf-8'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url; a.download = 'custo_op_'+(opB?opA+'_'+opB:opA)+'.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+function exportPdf(){
+  var t = totalsForView();
+  var hourRows = Object.entries(t.horas).sort(function(a,b){return b[1]-a[1];}).map(function(e){
+    var rate = rates[e[0]]||0;
+    return '<tr><td>'+htmlEscape(e[0])+'</td><td>'+e[1].toFixed(2)+' h</td><td>'+(rate>0?fmt(rate):'A preencher')+'</td><td>'+fmt(e[1]*rate)+'</td></tr>';
+  }).join('');
+  var tercRows = [];
+  opsInView().forEach(function(op){ tercRows = tercRows.concat(tercRowsForOp(op)); });
+  var tercHtml = tercRows.map(function(r){ return '<tr><td>'+htmlEscape(r.desc)+'</td><td>'+htmlEscape(r.ccDesc)+'</td><td>'+fmt(r.valor)+'</td></tr>'; }).join('');
+  var titulo = opB ? ('OP '+opA+' x OP '+opB) : ('OP '+opA);
+  var report = '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Custo '+htmlEscape(titulo)+'</title><style>@page{size:A4 landscape;margin:12mm}*{box-sizing:border-box}body{margin:0;background:#fff;color:#15171d;font-family:Arial,Helvetica,sans-serif;font-size:11px}h2{margin:0;text-transform:uppercase}.header{background:linear-gradient(135deg,#16191f,#27060a);color:#fff;padding:18px 22px;border-top:5px solid #e8000d;display:flex;justify-content:space-between;align-items:center}.brand{font-size:28px;font-weight:800}.meta{text-align:right;line-height:1.5;color:#d7dce6}.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px}.card{border-left:4px solid #e8000d;background:#f3f5f8;padding:12px;min-height:74px}.card .k{color:#5b6472;text-transform:uppercase;font-size:10px;font-weight:700}.card .v{margin-top:8px;font-size:20px;font-weight:800}.card.total{background:#2a080b;color:#fff}.card.total .v{color:#ff2733}.section{margin-top:14px}table{width:100%;border-collapse:collapse;margin-top:8px}th{background:#111318;color:#fff;text-align:left;padding:7px;font-size:10px;text-transform:uppercase}td{border:1px solid #d8dde5;padding:6px 7px;vertical-align:top}tbody tr:nth-child(even) td{background:#f7f8fa}.no-print{position:fixed;right:16px;top:16px;z-index:2;padding:10px 14px;background:#e8000d;color:white;border:0;font-weight:700}@media print{.no-print{display:none}}</style></head><body><button class="no-print" onclick="window.print()">Salvar PDF</button><div class="header"><div><div class="brand">TECNODRILL</div><div>Custo de producao - '+htmlEscape(titulo)+'</div></div><div class="meta"><b>'+htmlEscape(titulo)+'</b><br>Materia-prima . Mao de obra . Terceiros<br>Relatorio executivo</div></div><div class="cards"><div class="card"><div class="k">Materia-prima</div><div class="v">'+fmt(t.mp)+'</div></div><div class="card"><div class="k">Terceiros</div><div class="v">'+fmt(t.terc)+'</div></div><div class="card"><div class="k">Mao de obra</div><div class="v">'+fmt(t.mo)+'</div></div><div class="card total"><div class="k">Custo total</div><div class="v">'+fmt(t.total)+'</div></div></div><div class="section"><h2>Mao de obra por centro de custo</h2><table><thead><tr><th>Centro de custo</th><th>Horas</th><th>R$/h</th><th>Custo</th></tr></thead><tbody>'+hourRows+'</tbody></table></div><div class="section"><h2>Terceiros</h2><table><thead><tr><th>Item</th><th>Processo</th><th>Custo</th></tr></thead><tbody>'+tercHtml+'</tbody></table></div></body></html>';
+  var url = URL.createObjectURL(new Blob([report], {type:'text/html;charset=utf-8'}));
+  var win = window.open(url, '_blank');
+  if(!win){ var a=document.createElement('a'); a.href=url; a.download='custo_'+titulo.replace(/\s+/g,'_')+'.html'; a.click(); }
+}
+
+/* ================= EVENTOS ================= */
+$('#uploadDrop').addEventListener('click', function(e){ if(e.target.id!=='fileInput') $('#fileInput').click(); });
+$('#fileInput').addEventListener('change', function(e){ var f=e.target.files&&e.target.files[0]; if(f) handleFile(f); });
+$('#uploadDrop').addEventListener('dragover', function(e){ e.preventDefault(); });
+$('#uploadDrop').addEventListener('drop', function(e){ e.preventDefault(); var f=e.dataTransfer.files&&e.dataTransfer.files[0]; if(f) handleFile(f); });
+$('#trocarArquivoBtn').addEventListener('click', function(){
+  ITENS=[]; ACOMP=[]; TERC=[]; OPS=[]; opA=null; opB=null;
+  $('#appWrap').hidden = true; $('#topbarActions').hidden = true;
+  $('#uploadWrap').hidden = false;
+  $('#scopeLabel').textContent = 'Nenhum arquivo carregado';
+  $('#fileInput').value = '';
+});
+$('#materialSearch').addEventListener('input', function(e){ materialSearchTerm = e.target.value; currentGroupKey=null; renderMaterialSubtabs(); });
+$('#exportCsvBtn').addEventListener('click', exportCsv);
+$('#exportCsvReport').addEventListener('click', exportCsv);
+$('#exportPdfBtn').addEventListener('click', exportPdf);
+$('#exportPdfReport').addEventListener('click', exportPdf);
+document.querySelectorAll('.side-nav a').forEach(function(a){
+  a.addEventListener('click', function(){
+    document.querySelectorAll('.side-nav a').forEach(function(x){ x.classList.remove('active'); });
+    a.classList.add('active');
+  });
+});
+setupOpPicker('#opSearchA','#opListA', selecionarOpA);
+setupOpPicker('#opSearchB','#opListB', selecionarOpB);
+</script>
+</body>
+</html>
