@@ -538,14 +538,29 @@ function ccTimeInfo(ref, op, isSub){
   var opList = Object.keys(opDate).sort(function(a,b){ return opDate[b]-opDate[a]; });
   if(!opList.length) return {mode:'none'};
   var lastTwo = opList.slice(0,2);
-  var sums = {};
+  /* Cada OP pode ter produzido uma quantidade diferente desse item no mesmo apontamento
+     (ex: OP com 7 pcs vs OP com 5 pcs). O tempo bruto (horas) nao e comparavel entre OPs
+     com lotes de tamanhos diferentes, entao primeiro normaliza para tempo/peca em CADA OP
+     (horas do CC na OP / qtd produzida do CC na OP), so depois tira a media entre as OPs. */
+  var perOpUnit = {};
   lastTwo.forEach(function(o){
-    var byCcOp = {};
-    rows.filter(function(r){ return r.op===o; }).forEach(function(r){ var k=r.ccDesc||r.cc||'Sem CC'; byCcOp[k]=(byCcOp[k]||0)+r.horas; });
-    Object.keys(byCcOp).forEach(function(cc){ sums[cc]=(sums[cc]||0)+byCcOp[cc]; });
+    var byCcHoras = {}, byCcQtd = {};
+    rows.filter(function(r){ return r.op===o; }).forEach(function(r){
+      var k = r.ccDesc||r.cc||'Sem CC';
+      byCcHoras[k] = (byCcHoras[k]||0) + r.horas;
+      byCcQtd[k] = (byCcQtd[k]||0) + r.qtdProduz;
+    });
+    Object.keys(byCcHoras).forEach(function(cc){
+      var qtd = byCcQtd[cc];
+      var unit = qtd>0 ? byCcHoras[cc]/qtd : byCcHoras[cc];
+      (perOpUnit[cc] = perOpUnit[cc] || []).push(unit);
+    });
   });
   var avgCcs = {};
-  Object.keys(sums).forEach(function(cc){ avgCcs[cc] = sums[cc]/lastTwo.length; });
+  Object.keys(perOpUnit).forEach(function(cc){
+    var soma = perOpUnit[cc].reduce(function(s,v){ return s+v; },0);
+    avgCcs[cc] = soma/lastTwo.length;
+  });
   return {mode:'avg', ops:lastTwo, ccs:avgCcs};
 }
 function ccTooltipHtml(label, isSub, info){
@@ -557,9 +572,9 @@ function ccTooltipHtml(label, isSub, info){
         return '<div class="tt-row"><span>'+htmlEscape(e[0])+'</span><b>'+e[1].toFixed(2)+' h</b></div>';
       }).join('');
   } else if(info.mode==='avg'){
-    body = '<div class="tt-note">Media das ultimas '+info.ops.length+' OP(s) em que este item foi fabricado: OP '+info.ops.map(htmlEscape).join(', OP ')+'.</div>' +
+    body = '<div class="tt-note">Tempo/peca medio das ultimas '+info.ops.length+' OP(s) em que este item foi fabricado (normalizado pela qtd. produzida em cada OP): OP '+info.ops.map(htmlEscape).join(', OP ')+'.</div>' +
       Object.entries(info.ccs).sort(function(a,b){ return b[1]-a[1]; }).map(function(e){
-        return '<div class="tt-row"><span>'+htmlEscape(e[0])+'</span><b>'+e[1].toFixed(2)+' h (media)</b></div>';
+        return '<div class="tt-row"><span>'+htmlEscape(e[0])+'</span><b>'+e[1].toFixed(3)+' h/pc</b></div>';
       }).join('');
   } else if(info.mode==='none-exact'){
     body = '<div class="tt-note">Sem apontamento (ACOMP PROD) para este item nesta OP.</div>';
