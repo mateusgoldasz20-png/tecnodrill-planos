@@ -357,16 +357,31 @@
       <section id="terceiros">
         <div class="sec-head">
           <h2>Terceiros — Serviços Externos</h2>
-          <div class="note">Base: aba "RET SERVC EXT" do SIGER. Custo = valor de mão de obra terceirizada pago no retorno.</div>
+          <div class="note">Base: aba "RET SERVC EXT" do SIGER. Custo rateado pela quantidade efetivamente usada na OP quando a remessa envolveu mais peças do que o necessário.</div>
+        </div>
+        <div class="panel" style="margin-bottom:14px;">
+          <div class="sec-head" style="margin-bottom:10px;">
+            <h2 style="font-size:18px;">Por tipo de serviço</h2>
+            <div class="note">Custo já rateado — soma bate com o card "Terceiros" do Resumo Executivo.</div>
+          </div>
+          <table>
+            <thead><tr><th>Serviço</th><th class="num">Custo (rateado)</th><th class="num">% do total</th></tr></thead>
+            <tbody id="tercServicoBody"></tbody>
+            <tfoot><tr><td>Total (rateado)</td><td class="num" id="tercServicoTotal"></td><td></td></tr></tfoot>
+          </table>
         </div>
         <div class="panel">
+          <div class="sec-head" style="margin-bottom:10px;">
+            <h2 style="font-size:18px;">Detalhe por remessa (bruto, sem rateio)</h2>
+            <div class="note">Valor bruto de cada remessa, para auditoria — pode ser maior que o custo atribuído a esta OP quando a remessa cobre mais peças do que esta OP usou.</div>
+          </div>
           <div class="scroll-box" style="max-height:340px;">
             <table>
-              <thead><tr><th>Item</th><th>Processo</th><th>Fornecedor</th><th class="num">Custo</th></tr></thead>
+              <thead><tr><th>Item</th><th>Processo</th><th>Fornecedor</th><th class="num">Custo bruto remessa</th></tr></thead>
               <tbody id="tercBody"></tbody>
             </table>
           </div>
-          <table style="margin-top:6px;"><tfoot><tr><td colspan="3">Total Terceiros</td><td class="num" id="tercTotal"></td></tr></tfoot></table>
+          <table style="margin-top:6px;"><tfoot><tr><td colspan="3">Total bruto das remessas</td><td class="num" id="tercTotal"></td></tr></tfoot></table>
         </div>
       </section>
 
@@ -619,6 +634,7 @@ function handleFile(file){
       ACOMP = parseAcomp(acompRows);
       TERC = parseTerc(tercRows);
       buildAcompIndex();
+      buildItensLeafIndex();
       buildOpsList();
       $('#uploadLoading').hidden = true;
       $('#uploadWrap').hidden = true;
@@ -692,8 +708,54 @@ function moTotal(op){
 function tercRowsForOp(op){
   return TERC.filter(function(r){ return r.op===op; });
 }
+/* ================= RATEIO DE TERCEIROS =================
+   O Vlr.mao obra de "RET SERVC EXT" e o custo da remessa inteira (Qtd.remetida),
+   que pode ser maior do que o que esta OP realmente consumiu (Qtd.efetiva/Cons.previsto
+   em "ITENS OP CUSTO"). Ex.: remessa de 8 pecas a R$1.475,52, OP so usou 2 -> custo
+   unitario R$184,44, custo atribuido a OP = R$368,88 (nao os R$1.475,52 inteiros).
+   Quando a referencia nao aparece como insumo consumido em nenhuma posicao da OP,
+   nao ha como ratear com seguranca: mantem o valor bruto da remessa. */
+var itensLeafQty = {};
+function buildItensLeafIndex(){
+  itensLeafQty = {};
+  ITENS.forEach(function(r){
+    if(!r.itemRef) return;
+    var key = r.op+'|'+r.itemRef;
+    var q = r.qtdEfetiva || r.qtdPrevista || 0;
+    itensLeafQty[key] = (itensLeafQty[key]||0) + q;
+  });
+}
+function tercRateio(op){
+  var rows = tercRowsForOp(op);
+  var byRef = {};
+  rows.forEach(function(r){
+    var key = r.referencia || ('__sem_ref__'+r.desc);
+    if(!byRef[key]) byRef[key] = {valorBruto:0, qtdRem:0, rows:[]};
+    byRef[key].valorBruto += r.valor;
+    byRef[key].qtdRem += r.qtdRemetida;
+    byRef[key].rows.push(r);
+  });
+  var out = [];
+  Object.keys(byRef).forEach(function(key){
+    var g = byRef[key];
+    var ref = g.rows[0].referencia;
+    var qtdUsada = ref ? itensLeafQty[op+'|'+ref] : undefined;
+    var factor = 1;
+    if(qtdUsada!==undefined && g.qtdRem>0) factor = qtdUsada/g.qtdRem;
+    g.rows.forEach(function(r){ out.push({row:r, valorAtribuido:r.valor*factor, rateado:factor!==1}); });
+  });
+  return out;
+}
 function tercTotal(op){
-  return tercRowsForOp(op).reduce(function(s,r){ return s + r.valor; },0);
+  return tercRateio(op).reduce(function(s,e){ return s + e.valorAtribuido; },0);
+}
+function tercPorServico(op){
+  var byCc = {};
+  tercRateio(op).forEach(function(e){
+    var key = e.row.ccDesc || e.row.cc || 'Sem servico';
+    byCc[key] = (byCc[key]||0) + e.valorAtribuido;
+  });
+  return byCc;
 }
 function allCcNames(){
   var set = {};
@@ -880,6 +942,19 @@ function renderTerc(){
     return '<tr><td>'+htmlEscape(r.desc)+'<div class="subtle">'+htmlEscape(r.referencia)+'</div></td><td>'+htmlEscape(r.ccDesc)+'</td><td>'+htmlEscape(r.fornecedorNome)+'</td><td class="num">'+fmt(r.valor)+'</td></tr>';
   }).join('') || '<tr><td colspan="4" class="subtle">Sem retornos de terceiros para esta selecao.</td></tr>';
   $('#tercTotal').textContent = fmt(rows.reduce(function(s,r){ return s+r.valor; },0));
+
+  var porServico = {};
+  ops.forEach(function(op){
+    var byCc = tercPorServico(op);
+    Object.keys(byCc).forEach(function(k){ porServico[k] = (porServico[k]||0) + byCc[k]; });
+  });
+  var totalServico = Object.values(porServico).reduce(function(s,v){ return s+v; },0);
+  var servicoRows = Object.entries(porServico).sort(function(a,b){ return b[1]-a[1]; });
+  $('#tercServicoBody').innerHTML = servicoRows.map(function(e){
+    var pct = totalServico>0 ? (e[1]/totalServico*100) : 0;
+    return '<tr><td>'+htmlEscape(e[0])+'</td><td class="num">'+fmt(e[1])+'</td><td class="num">'+pct.toFixed(1)+'%</td></tr>';
+  }).join('') || '<tr><td colspan="3" class="subtle">Sem retornos de terceiros para esta selecao.</td></tr>';
+  $('#tercServicoTotal').textContent = fmt(totalServico);
 }
 
 /* ================= COMPARATIVO ================= */
