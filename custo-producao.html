@@ -782,43 +782,49 @@ function buildTercHistorico(){
     });
   });
 }
-function tercInferirCusto(ref, proc){
-  var hist = tercHistorico[ref] && tercHistorico[ref][proc];
-  if(!hist || !hist.length) return null;
-  var maisRecente = hist.slice().sort(function(a,b){ return b.dataSort-a.dataSort; })[0];
-  var freq = {};
-  hist.forEach(function(h){ var k=h.unitCost.toFixed(2); (freq[k]=freq[k]||[]).push(h); });
-  var moda = Object.values(freq).sort(function(a,b){ return b.length-a.length; })[0];
-  return {maisRecente:maisRecente, maisRecorrente:moda[0], ocorrencias:hist.length, opsOrigem:hist.map(function(h){return h.op;})};
+/* Um componente pode ter mais de um processo distinto no historico (ex: mudou de
+   fornecedor/metodo - zincagem virou padrao, pintura foi excecao pontual). Assumindo
+   "processo identico" (regra do usuario), soh existe UM processo real por componente:
+   o dominante (mais recorrente no historico). Infere so esse - nunca soma processos
+   alternativos/legados do mesmo componente. */
+function tercProcessoDominante(ref){
+  var procs = tercHistorico[ref];
+  if(!procs) return null;
+  var entries = Object.entries(procs);
+  entries.sort(function(a,b){
+    if(b[1].length!==a[1].length) return b[1].length-a[1].length;
+    var recA = a[1].slice().sort(function(x,y){ return y.dataSort-x.dataSort; })[0];
+    var recB = b[1].slice().sort(function(x,y){ return y.dataSort-x.dataSort; })[0];
+    return recB.dataSort-recA.dataSort;
+  });
+  return {processo:entries[0][0], hist:entries[0][1], totalProcessosDistintos:entries.length};
 }
 function tercInferidos(op){
   var real = tercRateio(op);
-  var realKeys = {};
-  real.forEach(function(e){
-    var proc = e.row.ccDesc || e.row.cc || 'Servico';
-    realKeys[e.row.referencia+'|'+proc] = true;
-  });
+  var refsComCustoReal = {};
+  real.forEach(function(e){ refsComCustoReal[e.row.referencia] = true; });
   var refsDaOp = {};
   ITENS.forEach(function(r){ if(r.op===op && r.itemRef) refsDaOp[r.itemRef] = true; });
   var out = [];
   Object.keys(refsDaOp).forEach(function(ref){
-    var procs = tercHistorico[ref];
-    if(!procs) return;
+    if(refsComCustoReal[ref]) return; /* componente ja tem custo real de terceiros nesta OP - nunca duplica */
     var qtdUsada = itensLeafQty[op+'|'+ref];
     if(!qtdUsada) return;
-    Object.keys(procs).forEach(function(proc){
-      var key = ref+'|'+proc;
-      if(realKeys[key]) return; /* ja tem custo real desta OP para esse processo - nunca duplica */
-      var inf = tercInferirCusto(ref, proc);
-      if(!inf) return;
-      var usarPreco = inf.maisRecente.unitCost;
-      out.push({
-        ref:ref, processo:proc, qtdUsada:qtdUsada, unitCost:usarPreco,
-        valorInferido: usarPreco*qtdUsada,
-        opOrigem: inf.maisRecente.op, ocorrencias: inf.ocorrencias,
-        divergeDoRecorrente: Math.abs(inf.maisRecente.unitCost-inf.maisRecorrente.unitCost)>0.005,
-        precoRecorrente: inf.maisRecorrente.unitCost
-      });
+    var dom = tercProcessoDominante(ref);
+    if(!dom) return;
+    var hist = dom.hist;
+    var maisRecente = hist.slice().sort(function(a,b){ return b.dataSort-a.dataSort; })[0];
+    var freq = {};
+    hist.forEach(function(h){ var k=h.unitCost.toFixed(2); (freq[k]=freq[k]||[]).push(h); });
+    var moda = Object.values(freq).sort(function(a,b){ return b.length-a.length; })[0];
+    var usarPreco = maisRecente.unitCost;
+    out.push({
+      ref:ref, processo:dom.processo, qtdUsada:qtdUsada, unitCost:usarPreco,
+      valorInferido: usarPreco*qtdUsada,
+      opOrigem: maisRecente.op, ocorrencias: hist.length,
+      processosAlternativosIgnorados: dom.totalProcessosDistintos-1,
+      divergeDoRecorrente: Math.abs(maisRecente.unitCost-moda[0].unitCost)>0.005,
+      precoRecorrente: moda[0].unitCost
     });
   });
   return out;
@@ -1048,7 +1054,9 @@ function renderTerc(){
       var itemRow = ITENS.find(function(r){ return r.itemRef===e.ref; });
       var label = itemRow ? itemRow.itemDesc : e.ref;
       var divergeNote = e.divergeDoRecorrente ? ' <span class="pill warn" title="Preco mais recorrente no historico: '+fmt(e.precoRecorrente)+'">preco variou</span>' : '';
-      return '<tr><td>'+htmlEscape(label)+'<div class="subtle">'+htmlEscape(e.ref)+'</div></td><td>'+htmlEscape(e.processo)+divergeNote+'</td>' +
+      var altNote = e.processosAlternativosIgnorados>0 ? ' <span class="pill" title="Esta referencia tambem apareceu com outro(s) processo(s) no historico - usado apenas o mais recorrente">+'+e.processosAlternativosIgnorados+' alt.</span>' : '';
+      var confNote = e.ocorrencias===1 ? ' <span class="pill warn" title="Apenas 1 ocorrencia historica no arquivo inteiro - baixa confianca">1 ocorr.</span>' : '';
+      return '<tr><td>'+htmlEscape(label)+'<div class="subtle">'+htmlEscape(e.ref)+'</div></td><td>'+htmlEscape(e.processo)+divergeNote+altNote+confNote+'</td>' +
         '<td class="num">'+e.qtdUsada+'</td><td class="num">'+fmt(e.unitCost)+'</td><td class="num">'+fmt(e.valorInferido)+'</td>' +
         '<td class="subtle">OP '+htmlEscape(e.opOrigem)+' ('+e.ocorrencias+' ocorr.)</td></tr>';
     }).join('');
