@@ -427,7 +427,7 @@ function parseItens(rows){
       iIRef=findI(cm,"refitem","ref item"), iICusto=findI(cm,"custoaquisitem","custo aquis item"),
       iQtdPrev=findI(cm,"consprevistoitemop","cons.previsto item op"), iCustoPrev=findI(cm,"custoprevistoitemtotal","custo previsto item total"),
       iQtdEf=findI(cm,"qtdefetiva","qtd.efetiva"), iCustoEf=findI(cm,"custoefetivototal","custo efetivo total"),
-      iCc=findI(cm,"centcustoitemop","cent.custo item op"), iCcDesc=findI(cm,"ccitem","cc item"),
+      iCc=findI(cm,"codcc","cod cc","centcustoitemop","cent.custo item op"), iCcDesc=findI(cm,"desccc","desc cc","ccitem","cc item"),
       iMov=findI(cm,"movimentaestoque","movimenta estoque");
   var out=[];
   for(var r=1;r<rows.length;r++){
