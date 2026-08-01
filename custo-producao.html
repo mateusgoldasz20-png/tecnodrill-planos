@@ -370,6 +370,17 @@
             <tfoot><tr><td>Total (rateado)</td><td class="num" id="tercServicoTotal"></td><td></td></tr></tfoot>
           </table>
         </div>
+        <div class="panel" id="tercInferidoPanel" style="margin-bottom:14px;" hidden>
+          <div class="sec-head" style="margin-bottom:10px;">
+            <h2 style="font-size:18px;">Custos inferidos de outras OPs</h2>
+            <div class="note">Peça fabricada para estoque: esta OP consome o componente mas não tem remessa de terceiros própria para o processo. Custo reaproveitado do histórico de outra OP com o mesmo componente/processo.</div>
+          </div>
+          <table>
+            <thead><tr><th>Componente</th><th>Processo</th><th class="num">Qtd. usada</th><th class="num">Custo unit. (histórico)</th><th class="num">Custo inferido</th><th>Origem</th></tr></thead>
+            <tbody id="tercInferidoBody"></tbody>
+            <tfoot><tr><td colspan="4">Total inferido</td><td class="num" id="tercInferidoTotal"></td><td></td></tr></tfoot>
+          </table>
+        </div>
         <div class="panel">
           <div class="sec-head" style="margin-bottom:10px;">
             <h2 style="font-size:18px;">Detalhe por remessa (bruto, sem rateio)</h2>
@@ -510,6 +521,7 @@ function parseTerc(rows){
     if(!op) continue;
     out.push({
       dtRet:gs(row,iDtRet), remessa:gs(row,iRemessa), dtRem:gs(row,iDtRem),
+      dataSort: parseDateSort(row[iDtRet]) || parseDateSort(row[iDtRem]),
       cc:gs(row,iCc), ccDesc:gs(row,iCcDesc), fornecedorCod:gs(row,iFornCod), fornecedorNome:gs(row,iFornNome),
       prodPronto:gs(row,iProdPronto), referencia:gs(row,iRef), desc:gs(row,iDesc), qtdRemetida:normNum(row[iQtdRem]),
       nfRetorno:gs(row,iNf), op:op, seqOp:gs(row,iSeq), valor:normNum(row[iValor]), situacao:gs(row,iSit),
@@ -635,6 +647,7 @@ function handleFile(file){
       TERC = parseTerc(tercRows);
       buildAcompIndex();
       buildItensLeafIndex();
+      buildTercHistorico();
       buildOpsList();
       $('#uploadLoading').hidden = true;
       $('#uploadWrap').hidden = true;
@@ -746,14 +759,83 @@ function tercRateio(op){
   });
   return out;
 }
+/* ================= INFERENCIA DE TERCEIROS (peca fabricada para estoque) =================
+   Muitas pecas (ex: 95700004) sao fabricadas em lote para estoque e usadas em varias OPs,
+   mas a remessa de terceiros (zincagem, usinagem, oxidacao etc.) so fica vinculada a UMA
+   OP no SIGER - normalmente a que "puxou" o lote do estoque. As demais OPs que consomem a
+   mesma peca/processo ficam sem custo de terceiros registrado, subestimando o custo delas.
+   Regra: se esta OP usa uma referencia que tem historico de terceiros em OUTRAS OPs mas nao
+   tem remessa propria para aquele processo, infere o custo usando o preco unitario historico
+   (preferindo o mais recente - reflete reajuste real de fornecedor) x qtd usada NESTA OP.
+   Nunca duplica: so infere processo que esta OP ainda nao tem registrado de verdade. */
+var tercHistorico = {};
+function buildTercHistorico(){
+  tercHistorico = {};
+  TERC.forEach(function(r){
+    if(!r.referencia || !(r.qtdRemetida>0)) return;
+    var proc = r.ccDesc || r.cc || 'Servico';
+    if(!tercHistorico[r.referencia]) tercHistorico[r.referencia] = {};
+    if(!tercHistorico[r.referencia][proc]) tercHistorico[r.referencia][proc] = [];
+    tercHistorico[r.referencia][proc].push({
+      op:r.op, unitCost:r.valor/r.qtdRemetida, dataSort:r.dataSort||0,
+      fornecedor:r.fornecedorNome, valor:r.valor, qtdRem:r.qtdRemetida
+    });
+  });
+}
+function tercInferirCusto(ref, proc){
+  var hist = tercHistorico[ref] && tercHistorico[ref][proc];
+  if(!hist || !hist.length) return null;
+  var maisRecente = hist.slice().sort(function(a,b){ return b.dataSort-a.dataSort; })[0];
+  var freq = {};
+  hist.forEach(function(h){ var k=h.unitCost.toFixed(2); (freq[k]=freq[k]||[]).push(h); });
+  var moda = Object.values(freq).sort(function(a,b){ return b.length-a.length; })[0];
+  return {maisRecente:maisRecente, maisRecorrente:moda[0], ocorrencias:hist.length, opsOrigem:hist.map(function(h){return h.op;})};
+}
+function tercInferidos(op){
+  var real = tercRateio(op);
+  var realKeys = {};
+  real.forEach(function(e){
+    var proc = e.row.ccDesc || e.row.cc || 'Servico';
+    realKeys[e.row.referencia+'|'+proc] = true;
+  });
+  var refsDaOp = {};
+  ITENS.forEach(function(r){ if(r.op===op && r.itemRef) refsDaOp[r.itemRef] = true; });
+  var out = [];
+  Object.keys(refsDaOp).forEach(function(ref){
+    var procs = tercHistorico[ref];
+    if(!procs) return;
+    var qtdUsada = itensLeafQty[op+'|'+ref];
+    if(!qtdUsada) return;
+    Object.keys(procs).forEach(function(proc){
+      var key = ref+'|'+proc;
+      if(realKeys[key]) return; /* ja tem custo real desta OP para esse processo - nunca duplica */
+      var inf = tercInferirCusto(ref, proc);
+      if(!inf) return;
+      var usarPreco = inf.maisRecente.unitCost;
+      out.push({
+        ref:ref, processo:proc, qtdUsada:qtdUsada, unitCost:usarPreco,
+        valorInferido: usarPreco*qtdUsada,
+        opOrigem: inf.maisRecente.op, ocorrencias: inf.ocorrencias,
+        divergeDoRecorrente: Math.abs(inf.maisRecente.unitCost-inf.maisRecorrente.unitCost)>0.005,
+        precoRecorrente: inf.maisRecorrente.unitCost
+      });
+    });
+  });
+  return out;
+}
 function tercTotal(op){
-  return tercRateio(op).reduce(function(s,e){ return s + e.valorAtribuido; },0);
+  var real = tercRateio(op).reduce(function(s,e){ return s + e.valorAtribuido; },0);
+  var inferido = tercInferidos(op).reduce(function(s,e){ return s + e.valorInferido; },0);
+  return real + inferido;
 }
 function tercPorServico(op){
   var byCc = {};
   tercRateio(op).forEach(function(e){
     var key = e.row.ccDesc || e.row.cc || 'Sem servico';
     byCc[key] = (byCc[key]||0) + e.valorAtribuido;
+  });
+  tercInferidos(op).forEach(function(e){
+    byCc[e.processo] = (byCc[e.processo]||0) + e.valorInferido;
   });
   return byCc;
 }
@@ -955,6 +1037,23 @@ function renderTerc(){
     return '<tr><td>'+htmlEscape(e[0])+'</td><td class="num">'+fmt(e[1])+'</td><td class="num">'+pct.toFixed(1)+'%</td></tr>';
   }).join('') || '<tr><td colspan="3" class="subtle">Sem retornos de terceiros para esta selecao.</td></tr>';
   $('#tercServicoTotal').textContent = fmt(totalServico);
+
+  var inferidos = [];
+  ops.forEach(function(op){ tercInferidos(op).forEach(function(e){ inferidos.push(e); }); });
+  var panel = $('#tercInferidoPanel');
+  panel.hidden = inferidos.length===0;
+  if(inferidos.length){
+    inferidos.sort(function(a,b){ return b.valorInferido-a.valorInferido; });
+    $('#tercInferidoBody').innerHTML = inferidos.map(function(e){
+      var itemRow = ITENS.find(function(r){ return r.itemRef===e.ref; });
+      var label = itemRow ? itemRow.itemDesc : e.ref;
+      var divergeNote = e.divergeDoRecorrente ? ' <span class="pill warn" title="Preco mais recorrente no historico: '+fmt(e.precoRecorrente)+'">preco variou</span>' : '';
+      return '<tr><td>'+htmlEscape(label)+'<div class="subtle">'+htmlEscape(e.ref)+'</div></td><td>'+htmlEscape(e.processo)+divergeNote+'</td>' +
+        '<td class="num">'+e.qtdUsada+'</td><td class="num">'+fmt(e.unitCost)+'</td><td class="num">'+fmt(e.valorInferido)+'</td>' +
+        '<td class="subtle">OP '+htmlEscape(e.opOrigem)+' ('+e.ocorrencias+' ocorr.)</td></tr>';
+    }).join('');
+    $('#tercInferidoTotal').textContent = fmt(inferidos.reduce(function(s,e){ return s+e.valorInferido; },0));
+  }
 }
 
 /* ================= COMPARATIVO ================= */
