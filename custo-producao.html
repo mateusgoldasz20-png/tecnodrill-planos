@@ -158,6 +158,7 @@
   .tree-body{display:none; border-top:1px solid var(--line); padding:6px;}
   .tree-block.open > .tree-body{display:block;}
   .tree-leaf{display:grid; grid-template-columns:minmax(64px,.6fr) minmax(160px,2.4fr) minmax(64px,.8fr) minmax(90px,1fr); gap:8px; align-items:center; border:1px solid #2b2f38; background:#111318; padding:7px 9px; margin-bottom:5px; max-width:100%; min-width:0; font-size:12px;}
+  .tree-leaf.tree-leaf-bom{grid-template-columns:minmax(56px,.5fr) minmax(140px,2fr) minmax(50px,.6fr) minmax(80px,.9fr) minmax(56px,.6fr) minmax(110px,1fr);}
   .tree-leaf:hover{background:#181b21;}
   .tree-code{color:#dce7ff; font-weight:800; font-size:10.5px; min-width:0; overflow-wrap:anywhere;}
   .tree-desc{font-weight:700; font-size:12.5px; line-height:1.22; min-width:0; overflow-wrap:anywhere;}
@@ -248,6 +249,9 @@
         </div>
         <button class="btn export" id="exportCsvBtn" type="button">Exportar CSV</button>
         <button class="btn export secondary" id="exportPdfBtn" type="button">Exportar PDF</button>
+        <button class="btn secondary" id="bomPadraoBtn" type="button">Carregar BOM padrão</button>
+        <input id="bomPadraoInput" type="file" accept=".xlsx,.xls" hidden>
+        <span class="pill" id="bomPadraoStatus" style="display:none;"></span>
         <button class="btn secondary" id="trocarArquivoBtn" type="button">Trocar arquivo</button>
       </div>
     </div>
@@ -537,6 +541,52 @@ var opA=null, opB=null, currentView='A';
 var RATE_STORAGE_KEY = 'tecnodrill_custo_rates_v1';
 var rates = loadRates();
 var acompByRef = {};
+var BOM_PADRAO = null; /* {rootRef, rootDesc, porRef:{ref:{codigo,desc,qtdPadrao,un}}} - opcional, carregado a parte */
+
+/* ================= BOM PADRAO (relatorio "Listagem de Formulacoes" do SIGER) =================
+   Arquivo separado (nao faz parte do export de custos). Formato de relatorio impresso:
+   linha raiz = [codigo(numero), cmb, rev, referencia, descricao, ...]
+   linhas de dado (a partir da proxima) = ['', codigo, referencia, descricao, seq, grd, qtd, un, ...]
+   Quantidades ja vem "explodidas" (resolvidas para 1 unidade do produto final), entao basta
+   somar por referencia (um componente pode aparecer em mais de uma posicao da arvore). */
+function parseBomPadrao(rows){
+  var dataStart=-1, rootRef=null, rootDesc=null, rootCode=null;
+  for(var i=0;i<20 && i<rows.length;i++){
+    var row = rows[i];
+    if(row && typeof row[0]==='number' && row[3] && row[4]){
+      rootCode=row[0]; rootRef=String(row[3]); rootDesc=row[4]; dataStart=i+1; break;
+    }
+  }
+  if(dataStart<0) return null;
+  var porRef = {};
+  for(var r=dataStart; r<rows.length; r++){
+    var row = rows[r];
+    if(!row || row.length<7) continue;
+    var codigo=row[1], ref=row[2], desc=row[3], qtd=row[6], un=row[7];
+    if(codigo===''||ref===undefined||ref==='') continue;
+    var key = String(ref);
+    if(!porRef[key]) porRef[key] = {codigo:codigo, desc:desc, qtdPadrao:0, un:un};
+    porRef[key].qtdPadrao += Number(qtd)||0;
+  }
+  return {rootRef:rootRef, rootDesc:rootDesc, rootCode:rootCode, porRef:porRef};
+}
+function handleBomPadraoFile(file){
+  file.arrayBuffer().then(function(buf){
+    try{
+      var wb = XLSX.read(new Uint8Array(buf), {type:'array', cellDates:false});
+      var rows = sheetRows(wb, wb.SheetNames[0]);
+      var bom = parseBomPadrao(rows);
+      if(!bom) throw new Error('Nao foi possivel reconhecer o formato do arquivo (esperado: relatorio "Listagem de Formulacoes" do SIGER).');
+      BOM_PADRAO = bom;
+      var st = $('#bomPadraoStatus');
+      st.style.display='inline-block';
+      st.textContent = 'BOM padrao: '+bom.rootDesc+' ('+Object.keys(bom.porRef).length+' componentes)';
+      renderAll();
+    }catch(e){
+      alert('Erro ao carregar BOM padrao: '+e.message);
+    }
+  });
+}
 
 /* ================= TEMPOS POR CC (hover em CJ/componente) =================
    CJ (tem posicao propria/Seq.OP nesta OP): tempo = apontamento real desta OP.
@@ -704,6 +754,22 @@ function materialTree(op){
     }
   });
   return Object.values(groups).sort(function(a,b){ return b.total-a.total; });
+}
+function rootProductRef(op){
+  var r = ITENS.find(function(x){ return x.op===op && x.seqOp==='0'; });
+  return r ? r.parentRef : null;
+}
+function bomAplicavel(op){
+  return !!(BOM_PADRAO && rootProductRef(op)===BOM_PADRAO.rootRef);
+}
+function seqOpsParaRef(op, ref){
+  var set = {};
+  ITENS.forEach(function(r){ if(r.op===op && r.itemRef===ref) set[r.seqOp]=true; });
+  return Object.keys(set);
+}
+function qtyTotalRefNaOp(op, ref){
+  return ITENS.filter(function(r){ return r.op===op && r.itemRef===ref; })
+    .reduce(function(s,r){ return s+(r.qtdEfetiva||r.qtdPrevista||0); },0);
 }
 function horasPorCc(op){
   var m = {};
@@ -1006,14 +1072,35 @@ function renderMaterialContent(filtered){
   var g = filtered.find(function(x){ return (x.seqOp+'|'+x.code)===currentGroupKey; }) || filtered[0];
   if(!g){ content.innerHTML = '<div class="material-empty">Selecione uma posicao para ver o detalhamento.</div>'; return; }
   var hasSub = g.leaves.some(function(l){ return l.isSub; });
+  var bomOk = bomAplicavel(g.op);
   var leavesSorted = g.leaves.slice().sort(function(a,b){ return b.custo-a.custo; });
   content.innerHTML =
     '<div class="material-detail-head"><h3 id="materialDetailTitle">'+htmlEscape(g.desc||g.code)+'</h3><span class="cost">'+fmt(g.total)+'</span></div>' +
     '<div class="subtle" style="margin-bottom:10px;">Cod. '+htmlEscape(g.code)+' · Ref. '+htmlEscape(g.ref)+' · Seq.OP '+htmlEscape(g.seqOp)+' · '+g.leaves.length+' insumo(s)</div>' +
     (hasSub ? '<div class="subtle" style="margin-bottom:10px;">Itens marcados "sub-conjunto" tem posicao propria nesta OP: o custo deles ja esta contado la, e nao entra no total desta posicao (evita duplicar).</div>' : '') +
+    (bomOk ? '<div class="subtle" style="margin-bottom:10px;">Comparado com BOM padrao: '+htmlEscape(BOM_PADRAO.rootDesc)+' — colunas "Padrao" e "Desvio" abaixo.</div>' : '') +
     leavesSorted.map(function(l,i){
-      return '<div class="tree-leaf" data-leaf-i="'+i+'"><span class="tree-code">'+htmlEscape(l.ref||l.code)+'</span><span class="tree-desc">'+htmlEscape(l.desc)+(l.isSub?' <span class="pill warn">sub-conjunto</span>':'')+'</span>' +
-        '<span class="tree-num">'+(l.qtd!=null?l.qtd:'')+'</span><span class="tree-num '+(l.isSub?'muted':'tree-total')+'">'+fmt(l.custo)+(l.isSub?' *':'')+'</span></div>';
+      var bomCols = '';
+      if(bomOk){
+        var b = BOM_PADRAO.porRef[l.ref];
+        if(b){
+          /* desvio e' calculado pelo TOTAL da referencia na OP inteira (todas as posicoes onde ela
+             aparece), nao so nesta linha - senao um componente dividido em 2 posicoes (normal) pareceria
+             erradamente "faltando" em cada uma delas isoladamente. */
+          var qtyTotalOp = qtyTotalRefNaOp(g.op, l.ref);
+          var desvio = qtyTotalOp - b.qtdPadrao;
+          var seqs = seqOpsParaRef(g.op, l.ref);
+          var extraNaRaiz = g.seqOp==='0' && seqs.length>1;
+          var desvioStyle = Math.abs(desvio)>0.001 ? 'color:var(--amber);font-weight:800;' : 'color:var(--green);';
+          bomCols = '<span class="tree-num muted" title="Qtd. padrao do BOM para esta referencia (produto inteiro)">'+b.qtdPadrao+'</span>' +
+            '<span class="tree-num" style="'+desvioStyle+'" title="Desvio = total usado nesta OP (todas as posicoes) menos o padrao">'+(desvio>0?'+':'')+desvio+
+            (extraNaRaiz?' <span class="pill warn" title="Esta referencia ja aparece completa em outra posicao (CJ) desta OP - esta ocorrencia na posicao raiz e adicional, possivel reposicao/quebra">reposição?</span>':'')+'</span>';
+        } else {
+          bomCols = '<span class="tree-num muted">—</span><span class="tree-num muted">sem BOM</span>';
+        }
+      }
+      return '<div class="tree-leaf'+(bomOk?' tree-leaf-bom':'')+'" data-leaf-i="'+i+'"><span class="tree-code">'+htmlEscape(l.ref||l.code)+'</span><span class="tree-desc">'+htmlEscape(l.desc)+(l.isSub?' <span class="pill warn">sub-conjunto</span>':'')+'</span>' +
+        '<span class="tree-num">'+(l.qtd!=null?l.qtd:'')+'</span><span class="tree-num '+(l.isSub?'muted':'tree-total')+'">'+fmt(l.custo)+(l.isSub?' *':'')+'</span>' + bomCols + '</div>';
     }).join('');
   bindCcHover($('#materialDetailTitle'), g.ref, g.op, true, g.desc||g.code);
   content.querySelectorAll('.tree-leaf').forEach(function(el){
@@ -1179,6 +1266,8 @@ $('#uploadDrop').addEventListener('click', function(e){ if(e.target.id!=='fileIn
 $('#fileInput').addEventListener('change', function(e){ var f=e.target.files&&e.target.files[0]; if(f) handleFile(f); });
 $('#uploadDrop').addEventListener('dragover', function(e){ e.preventDefault(); });
 $('#uploadDrop').addEventListener('drop', function(e){ e.preventDefault(); var f=e.dataTransfer.files&&e.dataTransfer.files[0]; if(f) handleFile(f); });
+$('#bomPadraoBtn').addEventListener('click', function(){ $('#bomPadraoInput').click(); });
+$('#bomPadraoInput').addEventListener('change', function(e){ var f=e.target.files&&e.target.files[0]; if(f) handleBomPadraoFile(f); });
 $('#trocarArquivoBtn').addEventListener('click', function(){
   ITENS=[]; ACOMP=[]; TERC=[]; OPS=[]; opA=null; opB=null;
   $('#appWrap').hidden = true; $('#topbarActions').hidden = true;
