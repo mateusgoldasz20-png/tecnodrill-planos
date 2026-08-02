@@ -517,6 +517,15 @@ function parseItens(rows){
   }
   return out;
 }
+function fmtData(v){
+  if(v===null||v===undefined||v==='') return '';
+  var s = String(v).trim();
+  if(/^\d{4,6}$/.test(s)){ /* serial de data do Excel */
+    var d = new Date(Date.UTC(1899,11,30) + parseInt(s,10)*86400000);
+    return String(d.getUTCDate()).padStart(2,'0')+'/'+String(d.getUTCMonth()+1).padStart(2,'0')+'/'+d.getUTCFullYear();
+  }
+  return s;
+}
 function parseDateSort(v){
   if(v===null || v===undefined || v==="") return 0;
   if(typeof v==="number") return v; /* serial de data do Excel, ja ordenavel */
@@ -642,45 +651,41 @@ function buildAcompIndex(){
     (acompByRef[r.referencia] = acompByRef[r.referencia] || []).push(r);
   });
 }
+/* Regra de tempos por CC:
+   1) Usa SEMPRE o apontamento da propria OP quando existir (tempo oficial da OP -
+      nao ha planilha de tempo unitario cadastrado neste export; o apontamento da
+      OP e' o registro padrao disponivel).
+   2) Sem apontamento nesta OP: busca o ULTIMO tempo registrado para esse produto
+      na ACOMP PROD (registro mais recente por Dt.apont, de qualquer OP),
+      normalizado por peca - e SINALIZA que veio da ACOMP PROD de outra OP. */
 function ccTimeInfo(ref, op, isSub){
   if(!ref) return {mode:'none'};
   var rows = acompByRef[ref] || [];
-  if(isSub){
-    var mine = rows.filter(function(r){ return r.op===op; });
-    if(!mine.length) return {mode:'none-exact', op:op};
+  if(!rows.length) return {mode:'none'};
+  var mine = rows.filter(function(r){ return r.op===op; });
+  if(mine.length){
     var byCc = {};
     mine.forEach(function(r){ var k=r.ccDesc||r.cc||'Sem CC'; byCc[k]=(byCc[k]||0)+r.horas; });
     return {mode:'exact', op:op, ccs:byCc};
   }
+  /* mais recente por data de apontamento */
   var opDate = {};
   rows.forEach(function(r){ if(opDate[r.op]===undefined || r.dataSort>opDate[r.op]) opDate[r.op]=r.dataSort; });
   var opList = Object.keys(opDate).sort(function(a,b){ return opDate[b]-opDate[a]; });
-  if(!opList.length) return {mode:'none'};
-  var lastTwo = opList.slice(0,2);
-  /* Cada OP pode ter produzido uma quantidade diferente desse item no mesmo apontamento
-     (ex: OP com 7 pcs vs OP com 5 pcs). O tempo bruto (horas) nao e comparavel entre OPs
-     com lotes de tamanhos diferentes, entao primeiro normaliza para tempo/peca em CADA OP
-     (horas do CC na OP / qtd produzida do CC na OP), so depois tira a media entre as OPs. */
-  var perOpUnit = {};
-  lastTwo.forEach(function(o){
-    var byCcHoras = {}, byCcQtd = {};
-    rows.filter(function(r){ return r.op===o; }).forEach(function(r){
-      var k = r.ccDesc||r.cc||'Sem CC';
-      byCcHoras[k] = (byCcHoras[k]||0) + r.horas;
-      byCcQtd[k] = (byCcQtd[k]||0) + r.qtdProduz;
-    });
-    Object.keys(byCcHoras).forEach(function(cc){
-      var qtd = byCcQtd[cc];
-      var unit = qtd>0 ? byCcHoras[cc]/qtd : byCcHoras[cc];
-      (perOpUnit[cc] = perOpUnit[cc] || []).push(unit);
-    });
+  var ultima = opList[0];
+  var byCcHoras = {}, byCcQtd = {}, dataTxt = '';
+  rows.filter(function(r){ return r.op===ultima; }).forEach(function(r){
+    var k = r.ccDesc||r.cc||'Sem CC';
+    byCcHoras[k] = (byCcHoras[k]||0) + r.horas;
+    byCcQtd[k] = (byCcQtd[k]||0) + r.qtdProduz;
+    if(r.data) dataTxt = r.data;
   });
-  var avgCcs = {};
-  Object.keys(perOpUnit).forEach(function(cc){
-    var soma = perOpUnit[cc].reduce(function(s,v){ return s+v; },0);
-    avgCcs[cc] = soma/lastTwo.length;
+  var unitCcs = {};
+  Object.keys(byCcHoras).forEach(function(cc){
+    var qtd = byCcQtd[cc];
+    unitCcs[cc] = qtd>0 ? byCcHoras[cc]/qtd : byCcHoras[cc];
   });
-  return {mode:'avg', ops:lastTwo, ccs:avgCcs};
+  return {mode:'fallback', opOrigem:ultima, data:dataTxt, ccs:unitCcs};
 }
 function ccTooltipHtml(label, isSub, info){
   var title = (isSub?'CJ · ':'Componente · ')+htmlEscape(label||'');
@@ -690,13 +695,11 @@ function ccTooltipHtml(label, isSub, info){
       Object.entries(info.ccs).sort(function(a,b){ return b[1]-a[1]; }).map(function(e){
         return '<div class="tt-row"><span>'+htmlEscape(e[0])+'</span><b>'+e[1].toFixed(2)+' h</b></div>';
       }).join('');
-  } else if(info.mode==='avg'){
-    body = '<div class="tt-note">Tempo/peca medio das ultimas '+info.ops.length+' OP(s) em que este item foi fabricado (normalizado pela qtd. produzida em cada OP): OP '+info.ops.map(htmlEscape).join(', OP ')+'.</div>' +
+  } else if(info.mode==='fallback'){
+    body = '<div class="tt-note">⚠ Sem apontamento nesta OP — tempo obtido da ACOMP PROD: último registro deste produto, OP '+htmlEscape(info.opOrigem)+(info.data?' ('+htmlEscape(fmtData(info.data))+')':'')+', normalizado por peça.</div>' +
       Object.entries(info.ccs).sort(function(a,b){ return b[1]-a[1]; }).map(function(e){
         return '<div class="tt-row"><span>'+htmlEscape(e[0])+'</span><b>'+e[1].toFixed(3)+' h/pc</b></div>';
       }).join('');
-  } else if(info.mode==='none-exact'){
-    body = '<div class="tt-note">Sem apontamento (ACOMP PROD) para este item nesta OP.</div>';
   } else {
     body = '<div class="tt-note">Sem historico de apontamento para este item.</div>';
   }
@@ -853,14 +856,11 @@ function buildPosNode(op, pos, bySeq, childrenBySeq, scale){
         excessCost:((l.qtdEfet>l.qtdPrev)?(l.qtdEfet-l.qtdPrev):0)*(l.unitCost||0)});
     }
   });
-  /* filhas por Origem Seq. que nenhuma linha de consumo referenciou (lote fabricado
-     nesta OP para outras maquinas/estoque - nao consumido por este conjunto) */
-  childSeqs.forEach(function(cs){
-    if(usadas[cs]) return;
-    var child = bySeq[cs];
-    child._consumedQty = null; child._consumedUn = child.un; child._isLote = true;
-    node.children.push(buildPosNode(op, child, bySeq, childrenBySeq, scale));
-  });
+  /* Posicoes-filhas que NENHUMA linha de consumo deste conjunto referenciou sao
+     descartadas: sao lotes fabricados na mesma OP para outras maquinas/estoque e
+     NAO pertencem a estrutura do nivel 0 desta OP (regra: so entra o que a arvore
+     do produto raiz realmente consome). O custo delas segue fora do total da
+     maquina - visivel apenas no card geral de materiais, nao na estrutura. */
   return node;
 }
 /* Ranking (lado esquerdo) = filhos DIRETOS da posicao raiz (Origem Seq. = 0):
@@ -1310,20 +1310,15 @@ function renderMaterialSubtabs(){
     });
   });
   var search = materialSearchTerm.trim().toLowerCase();
-  /* lotes p/ outras OPs vao para o fim da lista - nao compoem esta maquina */
   var filtered = tops.filter(function(t){ return !search || nodeMatches(t.node, search); })
-    .sort(function(a,b){
-      if(!!a.node.isLote !== !!b.node.isLote) return a.node.isLote ? 1 : -1;
-      return b.total-a.total;
-    });
-  /* % calculado so sobre o que compoe a maquina - lotes p/ outras OPs ficam fora da base */
-  var grandTotal = tops.reduce(function(s,t){ return s + (t.node.isLote ? 0 : t.total); },0);
+    .sort(function(a,b){ return b.total-a.total; });
+  var grandTotal = tops.reduce(function(s,t){ return s+t.total; },0);
   var max = Math.max.apply(null, filtered.map(function(t){ return t.total; }).concat([1]));
   wrap.innerHTML = filtered.map(function(t,i){
     var n = t.node;
     var share = max>0 ? (t.total/max*100) : 0;
-    var pct = n.isLote ? 'lote' : (grandTotal>0 ? (t.total/grandTotal*100).toFixed(1)+'%' : '');
-    var sub = n.leaf ? 'insumo direto' : t.count+' componente'+(t.count>1?'s':'')+(n.isLote?' · lote p/ outras OPs':'');
+    var pct = grandTotal>0 ? (t.total/grandTotal*100).toFixed(1)+'%' : '';
+    var sub = n.leaf ? 'insumo direto' : t.count+' componente'+(t.count>1?'s':'');
     return '<button type="button" class="material-rank-item'+(t.key===currentGroupKey?' active':'')+'" style="--share:'+share+'%" data-key="'+htmlEscape(t.key)+'">' +
       '<span>'+String(i+1).padStart(2,'0')+'</span>' +
       '<span class="material-rank-main"><strong>'+htmlEscape(n.desc||n.code)+'</strong><small>'+sub+'</small></span>' +
@@ -1398,8 +1393,7 @@ function renderMatTree(nodes, path, depth, bomOk, wrapLeaves, globalExc){
     var total = nodeFullTotal(node);
     var leafCount = nodeLeafCount(node);
     var qtyTag = node.consumedQty!=null ? ' <span class="muted">(cod.'+htmlEscape(node.code)+' - '+fmtQty(node.consumedQty)+' '+htmlEscape(node.consumedUn||node.un||'')+')</span>' : ' <span class="muted">(cod.'+htmlEscape(node.code)+')</span>';
-    var loteBadge = node.isLote ? ' <span class="pill warn" title="Lote fabricado nesta OP mas nao consumido por este conjunto - produzido para outras maquinas/estoque. Valores mostrados sao do lote inteiro.">lote p/ outras OPs</span>'
-      : (node.loteInfo ? ' <span class="pill" title="Posicao fabricou '+fmtQty(node.loteInfo.produzido)+' e este conjunto usa '+fmtQty(node.loteInfo.usado)+' - valores internos rateados para mostrar so o que esta maquina usa.">lote '+fmtQty(node.loteInfo.produzido)+' · usa '+fmtQty(node.loteInfo.usado)+'</span>' : '');
+    var loteBadge = node.loteInfo ? ' <span class="pill" title="Posicao fabricou '+fmtQty(node.loteInfo.produzido)+' e este conjunto usa '+fmtQty(node.loteInfo.usado)+' - valores internos rateados para mostrar so o que esta maquina usa.">lote '+fmtQty(node.loteInfo.produzido)+' · usa '+fmtQty(node.loteInfo.usado)+'</span>' : '';
     return '<div class="tree-block depth-'+Math.min(depth,3)+(isOpen?' open':'')+'">' +
       '<button class="tree-head" type="button" data-toggle-path="'+htmlEscape(id)+'" data-ref="'+htmlEscape(node.ref)+'" data-op="'+htmlEscape(node.op)+'" data-issub="1" data-label="'+htmlEscape(node.desc)+'">' +
         '<span><span class="chevron" aria-hidden="true"></span><strong>'+htmlEscape(node.desc)+'</strong>'+qtyTag+loteBadge+
