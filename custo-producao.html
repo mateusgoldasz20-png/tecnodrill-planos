@@ -117,6 +117,13 @@
   .chart-box{position:relative; height:340px;}
   .scroll-box{max-height:480px; overflow-y:auto; border:1px solid var(--line);}
   .scroll-box table thead th{position:sticky; top:0;}
+  #terceiros .single-panel{display:grid; grid-template-columns:minmax(420px,760px); gap:14px;}
+  .terc-raw-toggle{margin-top:14px;}
+  .terc-raw-toggle summary{cursor:pointer; color:var(--muted); font-size:12.5px; font-weight:600; padding:8px 0; list-style:none;}
+  .terc-raw-toggle summary::-webkit-details-marker{display:none;}
+  .terc-raw-toggle summary::before{content:"▸ "; color:var(--red);}
+  .terc-raw-toggle[open] summary::before{content:"▾ "; color:var(--red);}
+  .terc-raw-toggle summary:hover{color:var(--text);}
 
   .pill{display:inline-block; font-size:10.5px; padding:2px 8px; border:1px solid var(--line); border-radius:2px; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em;}
   .pill.op{border-color:#3a3a3a; color:#ccc; font-weight:700;}
@@ -166,6 +173,16 @@
   .tree-num{text-align:right; font-size:12px; font-variant-numeric:tabular-nums; white-space:nowrap; min-width:0;}
   .tree-total{color:#fff; font-weight:800;}
   .component-count{display:inline-flex; align-items:center; gap:5px; margin-left:8px; color:var(--muted); font-family:'Inter',sans-serif; font-size:11px; font-weight:700;}
+  .material-tree{display:flex; flex-direction:column; gap:6px; padding:8px; background:#101115; min-width:0;}
+  .tree-body .material-tree{padding:6px 6px 6px 10px;}
+  .tree-block.depth-1{margin-left:6px;}
+  .tree-block.depth-2{margin-left:10px;}
+  .tree-block.depth-3{margin-left:14px;}
+  .tree-direct{border:1px solid #2b2f38; border-left:3px solid #555b66; background:#121419;}
+  .tree-direct-head{display:grid; grid-template-columns:minmax(0,1fr) auto auto; align-items:center; gap:8px; padding:7px 9px; background:#181b21; color:var(--muted); font-size:10.5px; font-weight:800; text-transform:uppercase; letter-spacing:.04em;}
+  .tree-direct-head strong{color:#fff; font-family:'Barlow Condensed',sans-serif; font-size:13px;}
+  .tree-direct-head .tree-cost{color:var(--red);}
+  .tree-direct-body{display:flex; flex-direction:column; gap:5px; padding:6px;}
 
   .dashboard-grid{display:grid; grid-template-columns:minmax(0,1.45fr) minmax(320px,.75fr); gap:14px;}
   .ranking-panel{background:var(--panel); border:1px solid var(--line); padding:18px; border-radius:6px; overflow:hidden;}
@@ -363,43 +380,32 @@
       <section id="terceiros">
         <div class="sec-head">
           <h2>Terceiros — Serviços Externos</h2>
-          <div class="note">Base: aba "RET SERVC EXT" do SIGER. Custo rateado pela quantidade efetivamente usada na OP quando a remessa envolveu mais peças do que o necessário.</div>
+          <div class="note">Base: aba "RET SERVC EXT" do SIGER. Custo já rateado pela quantidade efetivamente usada nesta OP; quando o componente não teve remessa própria, o custo foi inferido do histórico de outra OP (ver coluna Origem).</div>
         </div>
-        <div class="panel" style="margin-bottom:14px;">
-          <div class="sec-head" style="margin-bottom:10px;">
-            <h2 style="font-size:18px;">Por tipo de serviço</h2>
-            <div class="note">Custo já rateado — soma bate com o card "Terceiros" do Resumo Executivo.</div>
+        <div class="single-panel">
+          <div class="panel">
+            <div class="scroll-box" style="max-height:420px;">
+              <table>
+                <thead><tr><th>Item</th><th>Processo</th><th>Origem</th><th class="num">Custo</th></tr></thead>
+                <tbody id="tercBody"></tbody>
+              </table>
+            </div>
+            <table style="margin-top:6px;"><tfoot><tr><td colspan="3">Total Terceiros</td><td class="num" id="tercTotal"></td></tr></tfoot></table>
           </div>
-          <table>
-            <thead><tr><th>Serviço</th><th class="num">Custo (rateado)</th><th class="num">% do total</th></tr></thead>
-            <tbody id="tercServicoBody"></tbody>
-            <tfoot><tr><td>Total (rateado)</td><td class="num" id="tercServicoTotal"></td><td></td></tr></tfoot>
-          </table>
         </div>
-        <div class="panel" id="tercInferidoPanel" style="margin-bottom:14px;" hidden>
-          <div class="sec-head" style="margin-bottom:10px;">
-            <h2 style="font-size:18px;">Custos inferidos de outras OPs</h2>
-            <div class="note">Peça fabricada para estoque: esta OP consome o componente mas não tem remessa de terceiros própria para o processo. Custo reaproveitado do histórico de outra OP com o mesmo componente/processo.</div>
+        <details class="terc-raw-toggle">
+          <summary>Ver detalhamento bruto por remessa (auditoria)</summary>
+          <div class="panel" style="margin-top:10px;">
+            <div class="note" style="margin-bottom:10px;">Valor bruto de cada remessa, antes do rateio — pode ser maior que o custo atribuído a esta OP quando a remessa cobre mais peças do que esta OP usou.</div>
+            <div class="scroll-box" style="max-height:300px;">
+              <table>
+                <thead><tr><th>Item</th><th>Processo</th><th>Fornecedor</th><th class="num">Custo bruto remessa</th></tr></thead>
+                <tbody id="tercRawBody"></tbody>
+              </table>
+            </div>
+            <table style="margin-top:6px;"><tfoot><tr><td colspan="3">Total bruto das remessas</td><td class="num" id="tercRawTotal"></td></tr></tfoot></table>
           </div>
-          <table>
-            <thead><tr><th>Componente</th><th>Processo</th><th class="num">Qtd. usada</th><th class="num">Custo unit. (histórico)</th><th class="num">Custo inferido</th><th>Origem</th></tr></thead>
-            <tbody id="tercInferidoBody"></tbody>
-            <tfoot><tr><td colspan="4">Total inferido</td><td class="num" id="tercInferidoTotal"></td><td></td></tr></tfoot>
-          </table>
-        </div>
-        <div class="panel">
-          <div class="sec-head" style="margin-bottom:10px;">
-            <h2 style="font-size:18px;">Detalhe por remessa (bruto, sem rateio)</h2>
-            <div class="note">Valor bruto de cada remessa, para auditoria — pode ser maior que o custo atribuído a esta OP quando a remessa cobre mais peças do que esta OP usou.</div>
-          </div>
-          <div class="scroll-box" style="max-height:340px;">
-            <table>
-              <thead><tr><th>Item</th><th>Processo</th><th>Fornecedor</th><th class="num">Custo bruto remessa</th></tr></thead>
-              <tbody id="tercBody"></tbody>
-            </table>
-          </div>
-          <table style="margin-top:6px;"><tfoot><tr><td colspan="3">Total bruto das remessas</td><td class="num" id="tercTotal"></td></tr></tfoot></table>
-        </div>
+        </details>
       </section>
 
       <section id="excedente">
@@ -789,6 +795,48 @@ function materialTree(op){
   });
   return Object.values(groups).sort(function(a,b){ return b.total-a.total; });
 }
+/* ================= ARVORE RECURSIVA DE MATERIAIS =================
+   Cada posicao (Seq.OP/parentCode) vira um "no". Um insumo-folha que e' ele mesmo
+   um sub-conjunto (tem posicao propria nesta OP) e' substituido pela arvore da sua
+   propria posicao, recursivamente - sem ambiguidade, pois usa o mesmo vinculo
+   Seq.OP/parentCode que o SIGER ja registra (nao depende do BOM padrao externo). */
+function positionsByCode(op){
+  var byCode = {};
+  materialTree(op).forEach(function(g){ if(!byCode[g.code]) byCode[g.code] = g; });
+  return byCode;
+}
+function topLevelPositions(op){
+  var byCode = positionsByCode(op);
+  var referenced = {};
+  ITENS.forEach(function(r){ if(r.op===op && r.itemCode && byCode[r.itemCode]) referenced[r.itemCode] = true; });
+  return Object.values(byCode).filter(function(g){ return !referenced[g.code]; });
+}
+function buildMaterialNode(op, group, byCode, visited){
+  var node = {op:op, code:group.code, ref:group.ref, desc:group.desc, un:group.un, seqOp:group.seqOp, ownTotal:group.total, leaf:false, children:[]};
+  group.leaves.forEach(function(l){
+    if(l.isSub && byCode[l.code] && !visited[l.code]){
+      visited[l.code] = true;
+      node.children.push(buildMaterialNode(op, byCode[l.code], byCode, visited));
+    } else {
+      node.children.push({op:op, code:l.code, ref:l.ref, desc:l.desc, qtd:l.qtd, custo:l.custo, cc:l.cc, leaf:true, isSub:!!(l.isSub && byCode[l.code])});
+    }
+  });
+  return node;
+}
+function nodeFullTotal(node){
+  if(node.leaf) return node.custo||0;
+  var t = node.ownTotal||0;
+  node.children.forEach(function(c){ if(!c.leaf) t += nodeFullTotal(c); });
+  return t;
+}
+function nodeLeafCount(node){
+  if(node.leaf) return 1;
+  return node.children.reduce(function(s,c){ return s+nodeLeafCount(c); },0);
+}
+function nodeMatches(node, term){
+  if(String(node.code).toLowerCase().includes(term) || String(node.desc).toLowerCase().includes(term)) return true;
+  return node.children ? node.children.some(function(c){ return nodeMatches(c, term); }) : false;
+}
 function rootProductRef(op){
   var r = ITENS.find(function(x){ return x.op===op && x.seqOp==='0'; });
   return r ? r.parentRef : null;
@@ -933,17 +981,6 @@ function tercTotal(op){
   var real = tercRateio(op).reduce(function(s,e){ return s + e.valorAtribuido; },0);
   var inferido = tercInferidos(op).reduce(function(s,e){ return s + e.valorInferido; },0);
   return real + inferido;
-}
-function tercPorServico(op){
-  var byCc = {};
-  tercRateio(op).forEach(function(e){
-    var key = e.row.ccDesc || e.row.cc || 'Sem servico';
-    byCc[key] = (byCc[key]||0) + e.valorAtribuido;
-  });
-  tercInferidos(op).forEach(function(e){
-    byCc[e.processo] = (byCc[e.processo]||0) + e.valorInferido;
-  });
-  return byCc;
 }
 function allCcNames(){
   var set = {};
@@ -1180,116 +1217,167 @@ function renderHours(){
 }
 var materialSearchTerm = '';
 var currentGroupKey = null;
+var materialOpenPaths = {};
 function renderMaterialSubtabs(){
   var wrap = $('#materialSubtabs');
   var ops = opsInView();
-  var trees = [];
-  ops.forEach(function(op){ trees = trees.concat(materialTree(op)); });
+  var tops = [];
+  ops.forEach(function(op){
+    var byCode = positionsByCode(op);
+    topLevelPositions(op).forEach(function(g){
+      var node = buildMaterialNode(op, g, byCode, {});
+      tops.push({g:g, node:node, total:nodeFullTotal(node), count:nodeLeafCount(node)});
+    });
+  });
   var search = materialSearchTerm.trim().toLowerCase();
-  var filtered = trees.filter(function(g){
-    if(!search) return true;
-    return String(g.code).toLowerCase().includes(search) || String(g.desc).toLowerCase().includes(search) ||
-      g.leaves.some(function(l){ return String(l.code).toLowerCase().includes(search) || String(l.desc).toLowerCase().includes(search); });
-  }).sort(function(a,b){ return b.total-a.total; });
-  var max = Math.max.apply(null, filtered.map(function(g){ return g.total; }).concat([1]));
-  wrap.innerHTML = filtered.map(function(g,i){
+  var filtered = tops.filter(function(t){ return !search || nodeMatches(t.node, search); })
+    .sort(function(a,b){ return b.total-a.total; });
+  var max = Math.max.apply(null, filtered.map(function(t){ return t.total; }).concat([1]));
+  wrap.innerHTML = filtered.map(function(t,i){
+    var g = t.g;
     var key = g.seqOp+'|'+g.code;
-    var share = max>0 ? (g.total/max*100) : 0;
+    var share = max>0 ? (t.total/max*100) : 0;
     return '<button type="button" class="material-rank-item'+(key===currentGroupKey?' active':'')+'" style="--share:'+share+'%" data-key="'+htmlEscape(key)+'">' +
       '<span>'+(i+1)+'</span>' +
-      '<span class="material-rank-main"><strong>'+htmlEscape(g.desc||g.code)+'</strong><small>Cod. '+htmlEscape(g.code)+' · Seq '+htmlEscape(g.seqOp)+' · '+g.leaves.length+' insumo(s)</small></span>' +
-      '<span class="material-rank-value"><strong>'+fmt(g.total)+'</strong></span>' +
+      '<span class="material-rank-main"><strong>'+htmlEscape(g.desc||g.code)+'</strong><small>Cod. '+htmlEscape(g.code)+' · Seq '+htmlEscape(g.seqOp)+' · '+t.count+' componente'+(t.count>1?'s':'')+'</small></span>' +
+      '<span class="material-rank-value"><strong>'+fmt(t.total)+'</strong></span>' +
       '</button>';
   }).join('') || '<div class="subtle" style="padding:10px;">Nenhum item encontrado.</div>';
   wrap.querySelectorAll('.material-rank-item').forEach(function(btn,i){
-    btn.addEventListener('click', function(){ currentGroupKey = btn.dataset.key; renderMaterialSubtabs(); renderMaterialContent(filtered); });
-    var g = filtered[i];
-    if(g) bindCcHover(btn, g.ref, g.op, true, g.desc||g.code);
+    btn.addEventListener('click', function(){ currentGroupKey = btn.dataset.key; renderMaterialSubtabs(); });
+    var t = filtered[i];
+    if(t) bindCcHover(btn, t.g.ref, t.g.op, true, t.g.desc||t.g.code);
   });
-  renderMaterialContent(filtered);
+  renderMaterialContent(filtered.map(function(t){ return t.g; }));
 }
-function renderMaterialContent(filtered){
+function renderMaterialContent(topList){
   var content = $('#materialGroupContent');
-  var g = filtered.find(function(x){ return (x.seqOp+'|'+x.code)===currentGroupKey; }) || filtered[0];
+  var g = topList.find(function(x){ return (x.seqOp+'|'+x.code)===currentGroupKey; }) || topList[0];
   if(!g){ content.innerHTML = '<div class="material-empty">Selecione uma posicao para ver o detalhamento.</div>'; return; }
-  var hasSub = g.leaves.some(function(l){ return l.isSub; });
   var bomOk = bomAplicavel(g.op);
-  var leavesSorted = g.leaves.slice().sort(function(a,b){ return b.custo-a.custo; });
+  var byCode = positionsByCode(g.op);
+  var node = buildMaterialNode(g.op, g, byCode, {});
+  var total = nodeFullTotal(node);
+  var leafCount = nodeLeafCount(node);
   content.innerHTML =
-    '<div class="material-detail-head"><h3 id="materialDetailTitle">'+htmlEscape(g.desc||g.code)+'</h3><span class="cost">'+fmt(g.total)+'</span></div>' +
-    '<div class="subtle" style="margin-bottom:10px;">Cod. '+htmlEscape(g.code)+' · Ref. '+htmlEscape(g.ref)+' · Seq.OP '+htmlEscape(g.seqOp)+' · '+g.leaves.length+' insumo(s)</div>' +
-    (hasSub ? '<div class="subtle" style="margin-bottom:10px;">Itens marcados "sub-conjunto" tem posicao propria nesta OP: o custo deles ja esta contado la, e nao entra no total desta posicao (evita duplicar).</div>' : '') +
-    (bomOk ? '<div class="subtle" style="margin-bottom:10px;">Comparado com BOM padrao: '+htmlEscape(BOM_PADRAO.rootDesc)+' — colunas "Padrao" e "Desvio" abaixo.</div>' : '') +
-    leavesSorted.map(function(l,i){
-      var bomCols = '';
-      if(bomOk){
-        var b = BOM_PADRAO.porRef[l.ref];
-        if(b){
-          /* desvio e' calculado pelo TOTAL da referencia na OP inteira (todas as posicoes onde ela
-             aparece), nao so nesta linha - senao um componente dividido em 2 posicoes (normal) pareceria
-             erradamente "faltando" em cada uma delas isoladamente. */
-          var qtyTotalOp = qtyTotalRefNaOp(g.op, l.ref);
-          var desvio = qtyTotalOp - b.qtdPadrao;
-          var seqs = seqOpsParaRef(g.op, l.ref);
-          var extraNaRaiz = g.seqOp==='0' && seqs.length>1;
-          var desvioStyle = Math.abs(desvio)>0.001 ? 'color:var(--amber);font-weight:800;' : 'color:var(--green);';
-          bomCols = '<span class="tree-num muted" title="Qtd. padrao do BOM para esta referencia (produto inteiro)">'+b.qtdPadrao+'</span>' +
-            '<span class="tree-num" style="'+desvioStyle+'" title="Desvio = total usado nesta OP (todas as posicoes) menos o padrao">'+(desvio>0?'+':'')+desvio+
-            (extraNaRaiz?' <span class="pill warn" title="Esta referencia ja aparece completa em outra posicao (CJ) desta OP - esta ocorrencia na posicao raiz e adicional, possivel reposicao/quebra">reposição?</span>':'')+'</span>';
-        } else {
-          bomCols = '<span class="tree-num muted">—</span><span class="tree-num muted">sem BOM</span>';
-        }
-      }
-      return '<div class="tree-leaf'+(bomOk?' tree-leaf-bom':'')+'" data-leaf-i="'+i+'"><span class="tree-code">'+htmlEscape(l.ref||l.code)+'</span><span class="tree-desc">'+htmlEscape(l.desc)+(l.isSub?' <span class="pill warn">sub-conjunto</span>':'')+'</span>' +
-        '<span class="tree-num">'+(l.qtd!=null?l.qtd:'')+'</span><span class="tree-num '+(l.isSub?'muted':'tree-total')+'">'+fmt(l.custo)+(l.isSub?' *':'')+'</span>' + bomCols + '</div>';
-    }).join('');
+    '<div class="material-detail-head"><h3 id="materialDetailTitle">'+htmlEscape(g.desc||g.code)+'</h3><span class="cost">'+fmt(total)+'</span></div>' +
+    '<div class="subtle" style="margin-bottom:10px;">Cod. '+htmlEscape(g.code)+' · Ref. '+htmlEscape(g.ref)+' · Seq.OP '+htmlEscape(g.seqOp)+' · '+leafCount+' componente'+(leafCount>1?'s':'')+' no total (inclui sub-conjuntos expandidos abaixo)</div>' +
+    (bomOk ? '<div class="subtle" style="margin-bottom:10px;">Comparado com BOM padrao: '+htmlEscape(BOM_PADRAO.rootDesc)+' — colunas "Padrao" e "Desvio" nos componentes-folha.</div>' : '') +
+    renderMatTree(node.children, (g.seqOp+'|'+g.code), 1, bomOk);
   bindCcHover($('#materialDetailTitle'), g.ref, g.op, true, g.desc||g.code);
+  content.querySelectorAll('.tree-head[data-toggle-path]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var p = btn.dataset.togglePath;
+      materialOpenPaths[p] = !materialOpenPaths[p];
+      btn.closest('.tree-block').classList.toggle('open', materialOpenPaths[p]);
+    });
+    bindCcHover(btn, btn.dataset.ref, btn.dataset.op, true, btn.dataset.label);
+  });
   content.querySelectorAll('.tree-leaf').forEach(function(el){
-    var l = leavesSorted[+el.dataset.leafI];
-    if(l) bindCcHover(el, l.ref||l.code, g.op, l.isSub, l.desc);
+    bindCcHover(el, el.dataset.ref, el.dataset.op, el.dataset.issub==='1', el.dataset.label);
   });
 }
+/* Um "no" (posicao/CJ) vira um bloco recolhivel com sua propria arvore de filhos;
+   um insumo-folha (materia-prima de verdade, sem posicao propria) vira uma linha
+   simples. Quando um bloco mistura sub-conjuntos e insumos diretos, os insumos
+   diretos ficam destacados a parte ("Componentes diretos"), como no relatorio de
+   referencia da diretoria. */
+function renderMatTree(nodes, path, depth, bomOk){
+  var branches = nodes.filter(function(n){ return !n.leaf; }).sort(function(a,b){ return nodeFullTotal(b)-nodeFullTotal(a); });
+  var leaves = nodes.filter(function(n){ return n.leaf; }).sort(function(a,b){ return b.custo-a.custo; });
+  var branchHtml = branches.map(function(node){
+    var id = path+'>'+node.code;
+    var isOpen = !!materialOpenPaths[id];
+    var total = nodeFullTotal(node);
+    var leafCount = nodeLeafCount(node);
+    return '<div class="tree-block depth-'+Math.min(depth,3)+(isOpen?' open':'')+'">' +
+      '<button class="tree-head" type="button" data-toggle-path="'+htmlEscape(id)+'" data-ref="'+htmlEscape(node.ref)+'" data-op="'+htmlEscape(node.op)+'" data-label="'+htmlEscape(node.desc)+'">' +
+        '<span><span class="chevron" aria-hidden="true"></span><strong>'+htmlEscape(node.desc)+'</strong><small>cod. '+htmlEscape(node.code)+' · Seq '+htmlEscape(node.seqOp)+' · '+leafCount+' componente'+(leafCount>1?'s':'')+'</small></span>' +
+        '<span class="component-count">sub-conjunto</span>' +
+        '<span class="tree-cost">'+fmt(total)+'</span>' +
+      '</button>' +
+      '<div class="tree-body">'+renderMatTree(node.children, id, depth+1, bomOk)+'</div>' +
+    '</div>';
+  }).join('');
+  var leafHtml = renderMatLeaves(leaves, bomOk);
+  var directHtml = (branches.length && leaves.length) ?
+    '<div class="tree-direct"><div class="tree-direct-head"><strong>Componentes diretos deste conjunto</strong><span>'+leaves.length+' item'+(leaves.length>1?'s':'')+'</span><span class="tree-cost">'+fmt(leaves.reduce(function(s,n){ return s+(n.custo||0); },0))+'</span></div><div class="tree-direct-body">'+leafHtml+'</div></div>'
+    : leafHtml;
+  return '<div class="material-tree">'+branchHtml+directHtml+'</div>';
+}
+function renderMatLeaves(leaves, bomOk){
+  return leaves.map(function(l){
+    var bomCols = '';
+    if(bomOk){
+      var b = BOM_PADRAO.porRef[l.ref];
+      if(b){
+        /* desvio e' calculado pelo TOTAL da referencia na OP inteira (todas as posicoes onde ela
+           aparece), nao so nesta linha - senao um componente dividido em 2 posicoes (normal) pareceria
+           erradamente "faltando" em cada uma delas isoladamente. */
+        var qtyTotalOp = qtyTotalRefNaOp(l.op, l.ref);
+        var desvio = qtyTotalOp - b.qtdPadrao;
+        var desvioStyle = Math.abs(desvio)>0.001 ? 'color:var(--amber);font-weight:800;' : 'color:var(--green);';
+        bomCols = '<span class="tree-num muted" title="Qtd. padrao do BOM para esta referencia (produto inteiro)">'+b.qtdPadrao+'</span>' +
+          '<span class="tree-num" style="'+desvioStyle+'" title="Desvio = total usado nesta OP (todas as posicoes) menos o padrao">'+(desvio>0?'+':'')+desvio+'</span>';
+      } else {
+        bomCols = '<span class="tree-num muted">—</span><span class="tree-num muted">sem BOM</span>';
+      }
+    }
+    return '<div class="tree-leaf'+(bomOk?' tree-leaf-bom':'')+'" data-ref="'+htmlEscape(l.ref||l.code)+'" data-op="'+htmlEscape(l.op)+'" data-issub="'+(l.isSub?'1':'0')+'" data-label="'+htmlEscape(l.desc)+'">' +
+      '<span class="tree-code">'+htmlEscape(l.ref||l.code)+'</span>' +
+      '<span class="tree-desc">'+htmlEscape(l.desc)+(l.isSub?' <span class="pill warn" title="Este sub-conjunto ja aparece expandido em outra posicao desta OP - custo contado la, nao aqui">outra ocorrência</span>':'')+'</span>' +
+      '<span class="tree-num">'+(l.qtd!=null?l.qtd:'')+'</span>' +
+      '<span class="tree-num tree-total">'+fmt(l.custo)+'</span>' + bomCols +
+    '</div>';
+  }).join('');
+}
+/* Painel unico (igual ao anexo da diretoria): rateio real e custo inferido de outra
+   OP viram linhas do MESMO tipo (Item / Processo / Origem / Custo), so distinguidos
+   pela coluna Origem - mantendo a logica de rateio+inferencia, so simplificando a
+   apresentacao visual. O detalhamento bruto por remessa fica num "ver mais"
+   recolhivel, para auditoria, sem poluir a leitura principal. */
 function renderTerc(){
   var ops = opsInView();
-  var rows = [];
-  ops.forEach(function(op){ rows = rows.concat(tercRowsForOp(op)); });
-  rows.sort(function(a,b){ return b.valor-a.valor; });
-  $('#tercBody').innerHTML = rows.map(function(r){
-    return '<tr><td>'+htmlEscape(r.desc)+'<div class="subtle">'+htmlEscape(r.referencia)+'</div></td><td>'+htmlEscape(r.ccDesc)+'</td><td>'+htmlEscape(r.fornecedorNome)+'</td><td class="num">'+fmt(r.valor)+'</td></tr>';
-  }).join('') || '<tr><td colspan="4" class="subtle">Sem retornos de terceiros para esta selecao.</td></tr>';
-  $('#tercTotal').textContent = fmt(rows.reduce(function(s,r){ return s+r.valor; },0));
-
-  var porServico = {};
+  var linhas = [];
   ops.forEach(function(op){
-    var byCc = tercPorServico(op);
-    Object.keys(byCc).forEach(function(k){ porServico[k] = (porServico[k]||0) + byCc[k]; });
-  });
-  var totalServico = Object.values(porServico).reduce(function(s,v){ return s+v; },0);
-  var servicoRows = Object.entries(porServico).sort(function(a,b){ return b[1]-a[1]; });
-  $('#tercServicoBody').innerHTML = servicoRows.map(function(e){
-    var pct = totalServico>0 ? (e[1]/totalServico*100) : 0;
-    return '<tr><td>'+htmlEscape(e[0])+'</td><td class="num">'+fmt(e[1])+'</td><td class="num">'+pct.toFixed(1)+'%</td></tr>';
-  }).join('') || '<tr><td colspan="3" class="subtle">Sem retornos de terceiros para esta selecao.</td></tr>';
-  $('#tercServicoTotal').textContent = fmt(totalServico);
-
-  var inferidos = [];
-  ops.forEach(function(op){ tercInferidos(op).forEach(function(e){ inferidos.push(e); }); });
-  var panel = $('#tercInferidoPanel');
-  panel.hidden = inferidos.length===0;
-  if(inferidos.length){
-    inferidos.sort(function(a,b){ return b.valorInferido-a.valorInferido; });
-    $('#tercInferidoBody').innerHTML = inferidos.map(function(e){
+    var porRef = {};
+    tercRateio(op).forEach(function(e){
+      var ref = e.row.referencia || ('__semref__'+e.row.desc);
+      if(!porRef[ref]) porRef[ref] = {desc:e.row.desc, procs:{}};
+      var proc = e.row.ccDesc || e.row.cc || 'Servico';
+      porRef[ref].procs[proc] = (porRef[ref].procs[proc]||0) + e.valorAtribuido;
+    });
+    Object.keys(porRef).forEach(function(ref){
+      Object.keys(porRef[ref].procs).forEach(function(proc){
+        linhas.push({desc:porRef[ref].desc, ref:ref, processo:proc, custo:porRef[ref].procs[proc], origem:'OP atual', badges:''});
+      });
+    });
+    tercInferidos(op).forEach(function(e){
       var itemRow = ITENS.find(function(r){ return r.itemRef===e.ref; });
       var label = itemRow ? itemRow.itemDesc : e.ref;
-      var divergeNote = e.divergeDoRecorrente ? ' <span class="pill warn" title="Preco mais recorrente no historico: '+fmt(e.precoRecorrente)+'">preco variou</span>' : '';
-      var altNote = e.processosAlternativosIgnorados>0 ? ' <span class="pill" title="Esta referencia tambem apareceu com outro(s) processo(s) no historico - usado apenas o mais recorrente">+'+e.processosAlternativosIgnorados+' alt.</span>' : '';
-      var confNote = e.ocorrencias===1 ? ' <span class="pill warn" title="Apenas 1 ocorrencia historica no arquivo inteiro - baixa confianca">1 ocorr.</span>' : '';
-      return '<tr><td>'+htmlEscape(label)+'<div class="subtle">'+htmlEscape(e.ref)+'</div></td><td>'+htmlEscape(e.processo)+divergeNote+altNote+confNote+'</td>' +
-        '<td class="num">'+e.qtdUsada+'</td><td class="num">'+fmt(e.unitCost)+'</td><td class="num">'+fmt(e.valorInferido)+'</td>' +
-        '<td class="subtle">OP '+htmlEscape(e.opOrigem)+' ('+e.ocorrencias+' ocorr.)</td></tr>';
-    }).join('');
-    $('#tercInferidoTotal').textContent = fmt(inferidos.reduce(function(s,e){ return s+e.valorInferido; },0));
-  }
+      var badges = '';
+      if(e.divergeDoRecorrente) badges += ' <span class="pill warn" title="Preco mais recorrente no historico: '+fmt(e.precoRecorrente)+'">preco variou</span>';
+      if(e.processosAlternativosIgnorados>0) badges += ' <span class="pill" title="Esta referencia tambem apareceu com outro(s) processo(s) no historico - usado apenas o mais recorrente">+'+e.processosAlternativosIgnorados+' alt.</span>';
+      if(e.ocorrencias===1) badges += ' <span class="pill warn" title="Apenas 1 ocorrencia historica no arquivo inteiro - baixa confianca">1 ocorr.</span>';
+      linhas.push({desc:label, ref:e.ref, processo:e.processo, custo:e.valorInferido, origem:'Inferido da OP '+e.opOrigem, badges:badges});
+    });
+  });
+  linhas.sort(function(a,b){ return b.custo-a.custo; });
+  $('#tercBody').innerHTML = linhas.map(function(l){
+    return '<tr><td>'+htmlEscape(l.desc)+'<div class="subtle">'+htmlEscape(l.ref)+'</div></td>' +
+      '<td>'+htmlEscape(l.processo)+l.badges+'</td>' +
+      '<td><span class="pill'+(l.origem==='OP atual'?' ok':' warn')+'">'+htmlEscape(l.origem)+'</span></td>' +
+      '<td class="num">'+fmt(l.custo)+'</td></tr>';
+  }).join('') || '<tr><td colspan="4" class="subtle">Sem custos de terceiros para esta selecao.</td></tr>';
+  $('#tercTotal').textContent = fmt(linhas.reduce(function(s,l){ return s+l.custo; },0));
+
+  var rawRows = [];
+  ops.forEach(function(op){ rawRows = rawRows.concat(tercRowsForOp(op)); });
+  rawRows.sort(function(a,b){ return b.valor-a.valor; });
+  $('#tercRawBody').innerHTML = rawRows.map(function(r){
+    return '<tr><td>'+htmlEscape(r.desc)+'<div class="subtle">'+htmlEscape(r.referencia)+'</div></td><td>'+htmlEscape(r.ccDesc)+'</td><td>'+htmlEscape(r.fornecedorNome)+'</td><td class="num">'+fmt(r.valor)+'</td></tr>';
+  }).join('') || '<tr><td colspan="4" class="subtle">Sem retornos de terceiros para esta selecao.</td></tr>';
+  $('#tercRawTotal').textContent = fmt(rawRows.reduce(function(s,r){ return s+r.valor; },0));
 }
 
 function renderExcedente(){
