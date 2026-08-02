@@ -183,6 +183,8 @@
   .tree-direct-head strong{color:#fff; font-family:'Barlow Condensed',sans-serif; font-size:13px;}
   .tree-direct-head .tree-cost{color:var(--red);}
   .tree-direct-body{display:flex; flex-direction:column; gap:5px; padding:6px;}
+  .tree-excess{display:grid; grid-template-columns:auto minmax(0,1fr) auto auto auto; gap:10px; align-items:center; border:1px solid rgba(246,196,83,.45); border-left:3px solid var(--amber); background:rgba(246,196,83,.06); color:var(--amber); padding:6px 9px; margin:-1px 0 5px 14px; font-size:11.5px; font-weight:700;}
+  .tree-excess .tree-num{color:var(--amber);}
 
   .dashboard-grid{display:grid; grid-template-columns:minmax(0,1.45fr) minmax(320px,.75fr); gap:14px;}
   .ranking-panel{background:var(--panel); border:1px solid var(--line); padding:18px; border-radius:6px; overflow:hidden;}
@@ -367,8 +369,8 @@
         <div class="material-layout">
           <div class="material-ranking">
             <div class="material-ranking-title">
-              <h3>Ranking por posição</h3>
-              <span>maior custo</span>
+              <h3>Ranking de materiais</h3>
+              <span>por grupo</span>
             </div>
             <input class="material-search" id="materialSearch" type="search" placeholder="Buscar código ou descrição">
             <div class="material-list" id="materialSubtabs"></div>
@@ -487,7 +489,7 @@ function sheetRows(wb, name){
 function parseItens(rows){
   if(!rows.length) return [];
   var cm = buildIdx(rows[0]);
-  var iOp=findI(cm,"op"), iSeq=findI(cm,"seqop","seq.op"), iPos=findI(cm,"descrposop","descr.pos.op"),
+  var iOp=findI(cm,"op"), iSeq=findI(cm,"seqop","seq.op"), iOrigSeq=findI(cm,"origemseq","origem seq"), iPos=findI(cm,"descrposop","descr.pos.op"),
       iPCode=findI(cm,"produto"), iPRef=findI(cm,"refproduto","ref produto"), iPDesc=findI(cm,"descprod","desc.prod"),
       iPCusto=findI(cm,"custoaquisprod","custo aquis prod"), iQtdProd=findI(cm,"qtdproduzir"),
       iPUn=iPCusto>0?iPCusto-1:-1, /* coluna "UN" do produto pai: aparece duas vezes no cabecalho, a do pai fica logo antes de "Custo aquis prod" */
@@ -504,7 +506,7 @@ function parseItens(rows){
     var op = gs(row,iOp);
     if(!op) continue;
     out.push({
-      op:op, seqOp:gs(row,iSeq), posDesc:gs(row,iPos),
+      op:op, seqOp:gs(row,iSeq), origemSeq:gs(row,iOrigSeq), posDesc:gs(row,iPos),
       parentCode:gs(row,iPCode), parentRef:gs(row,iPRef), parentDesc:gs(row,iPDesc), parentUn:gs(row,iPUn),
       parentCusto:normNum(row[iPCusto]), qtdProduzir:normNum(row[iQtdProd]),
       itemCode:gs(row,iICode), itemDesc:gs(row,iIDesc), itemRef:gs(row,iIRef), itemCusto:normNum(row[iICusto]), itemUn:gs(row,iIUn),
@@ -796,56 +798,118 @@ function materialTree(op){
   });
   return Object.values(groups).sort(function(a,b){ return b.total-a.total; });
 }
-/* ================= ARVORE RECURSIVA DE MATERIAIS =================
-   Cada posicao (Seq.OP/parentCode) vira um "no". Um insumo-folha que e' ele mesmo
-   um sub-conjunto (tem posicao propria nesta OP) e' substituido pela arvore da sua
-   propria posicao, recursivamente - sem ambiguidade, pois usa o mesmo vinculo
-   Seq.OP/parentCode que o SIGER ja registra (nao depende do BOM padrao externo). */
-function positionsByCode(op){
-  var byCode = {};
-  materialTree(op).forEach(function(g){ if(!byCode[g.code]) byCode[g.code] = g; });
-  return byCode;
-}
-/* Ranking = os componentes DIRETOS da posicao raiz (Seq.OP=0) desta OP - sub-conjunto
-   ou insumo, cada um vira 1 item do ranking (igual ao relatorio de referencia da
-   diretoria: "Cj Eletrico", "Estrutura...", "Kit Pneumatico" etc. cada um com seu %
-   do total da maquina). Selecionar um deles mostra a arvore recursiva completa dele.
-   Posicoes que sobrarem sem dono (ex: CJ fabricado nesta OP em lote para outra OP,
-   nao consumido pela propria raiz) tambem entram na lista, como itens avulsos. */
-function topLevelPositions(op){
-  var byCode = positionsByCode(op);
-  var rootRow = ITENS.find(function(r){ return r.op===op && r.seqOp==='0'; });
-  var rootGroup = rootRow ? byCode[rootRow.parentCode] : null;
-  var visited = {};
-  var out = [];
-  if(rootGroup){
-    visited[rootGroup.code] = true;
-    buildMaterialNode(op, rootGroup, byCode, visited).children.forEach(function(child){ out.push(child); });
-  }
-  Object.values(byCode).forEach(function(g){
-    if(visited[g.code]) return;
-    visited[g.code] = true;
-    out.push(buildMaterialNode(op, g, byCode, visited));
-  });
-  return out;
-}
-function buildMaterialNode(op, group, byCode, visited){
-  var node = {op:op, code:group.code, ref:group.ref, desc:group.desc, un:group.un, seqOp:group.seqOp, ownTotal:group.total, leaf:false, children:[]};
-  group.leaves.forEach(function(l){
-    if(l.isSub && byCode[l.code] && !visited[l.code]){
-      visited[l.code] = true;
-      node.children.push(buildMaterialNode(op, byCode[l.code], byCode, visited));
-    } else {
-      node.children.push({op:op, code:l.code, ref:l.ref, desc:l.desc, qtd:l.qtd, un:l.un, unitCost:l.unitCost, custo:l.custo, cc:l.cc, leaf:true, isSub:!!(l.isSub && byCode[l.code])});
+/* ================= ARVORE RECURSIVA DE MATERIAIS (Seq.OP x Origem Seq.) =================
+   A aba ITENS OP CUSTO traz a hierarquia explicita: cada posicao (Seq.OP) tem uma
+   "Origem Seq." apontando para a posicao que a consome (raiz = Seq 0). E' esse vinculo
+   que monta a estrutura - identico ao que o SIGER mostra na tela da OP.
+
+   Quantidades/custos exibidos na arvore: SEMPRE a quantidade prevista no BOM do
+   respectivo conjunto (Cons.previsto item OP) x custo unitario (Custo aquis item).
+   Quando a posicao fabricou lote maior do que o conjunto consome (ex: produz 6 pesos,
+   o conjunto usa 2), as quantidades internas sao rateadas pela fracao consumida -
+   o que aparece e' so o que ESTA maquina usa. Consumo efetivo acima do previsto vira
+   uma linha "excedente" logo abaixo do componente, sem inflar o custo do conjunto. */
+function positionsIndex(op){
+  var bySeq = {};
+  ITENS.filter(function(r){ return r.op===op; }).forEach(function(r){
+    if(!bySeq[r.seqOp]) bySeq[r.seqOp] = {op:op, seqOp:r.seqOp, origemSeq:r.origemSeq, code:r.parentCode, ref:r.parentRef, desc:r.parentDesc, un:r.parentUn, qtdProduzir:r.qtdProduzir, leaves:[]};
+    if(r.itemCode){
+      bySeq[r.seqOp].leaves.push({
+        code:r.itemCode, ref:r.itemRef, desc:r.itemDesc, un:r.itemUn,
+        qtdPrev:r.qtdPrevista, qtdEfet:r.qtdEfetiva, unitCost:r.itemCusto, cc:r.ccDesc
+      });
     }
+  });
+  return bySeq;
+}
+function buildPosNode(op, pos, bySeq, childrenBySeq, scale){
+  var node = {op:op, code:pos.code, ref:pos.ref, desc:pos.desc, un:pos.un, seqOp:pos.seqOp,
+    leaf:false, consumedQty:pos._consumedQty, consumedUn:pos._consumedUn, isLote:!!pos._isLote, children:[]};
+  /* posicoes-filhas ainda nao casadas com uma linha de consumo desta posicao */
+  var childSeqs = (childrenBySeq[pos.seqOp]||[]).slice();
+  var usadas = {};
+  pos.leaves.forEach(function(l){
+    var matchSeq = null;
+    for(var i=0;i<childSeqs.length;i++){
+      var cs = childSeqs[i];
+      if(!usadas[cs] && bySeq[cs].code===l.code){ matchSeq = cs; usadas[cs]=true; break; }
+    }
+    if(matchSeq!==null){
+      var child = bySeq[matchSeq];
+      child._consumedQty = l.qtdPrev; child._consumedUn = l.un; child._isLote = false;
+      /* lote: a posicao filha fabricou mais do que este conjunto consome -> rateia o
+         que aparece dentro dela pela fracao consumida (so o que esta maquina usa) */
+      var childScale = (child.qtdProduzir>0 && l.qtdPrev>0 && child.qtdProduzir>l.qtdPrev) ? (l.qtdPrev/child.qtdProduzir) : 1;
+      var cNode = buildPosNode(op, child, bySeq, childrenBySeq, scale*childScale);
+      cNode.excessQty = (l.qtdEfet>l.qtdPrev) ? (l.qtdEfet-l.qtdPrev) : 0;
+      cNode.excessCost = cNode.excessQty * (l.unitCost||0);
+      cNode.unitCost = l.unitCost||0;
+      cNode.loteInfo = (child.qtdProduzir>l.qtdPrev && child.qtdProduzir>0) ? {produzido:child.qtdProduzir, usado:l.qtdPrev} : null;
+      node.children.push(cNode);
+    } else {
+      node.children.push({op:op, code:l.code, ref:l.ref, desc:l.desc, un:l.un, leaf:true, cc:l.cc,
+        qtdShow:(l.qtdPrev||0)*scale, unitCost:l.unitCost||0, custo:((l.qtdPrev||0)*scale)*(l.unitCost||0),
+        excessQty:(l.qtdEfet>l.qtdPrev)?(l.qtdEfet-l.qtdPrev):0,
+        excessCost:((l.qtdEfet>l.qtdPrev)?(l.qtdEfet-l.qtdPrev):0)*(l.unitCost||0)});
+    }
+  });
+  /* filhas por Origem Seq. que nenhuma linha de consumo referenciou (lote fabricado
+     nesta OP para outras maquinas/estoque - nao consumido por este conjunto) */
+  childSeqs.forEach(function(cs){
+    if(usadas[cs]) return;
+    var child = bySeq[cs];
+    child._consumedQty = null; child._consumedUn = child.un; child._isLote = true;
+    node.children.push(buildPosNode(op, child, bySeq, childrenBySeq, scale));
   });
   return node;
 }
+/* Ranking (lado esquerdo) = filhos DIRETOS da posicao raiz (Origem Seq. = 0):
+   CJs e pecas soltas que compoem a maquina, igual ao relatorio de referencia. */
+function topLevelPositions(op){
+  var bySeq = positionsIndex(op);
+  var childrenBySeq = {};
+  Object.values(bySeq).forEach(function(p){
+    if(p.seqOp===p.origemSeq) return; /* raiz aponta para si mesma */
+    (childrenBySeq[p.origemSeq] = childrenBySeq[p.origemSeq] || []).push(p.seqOp);
+  });
+  var root = bySeq['0'];
+  if(!root){
+    /* OP sem posicao raiz explicita: cai para lista plana de posicoes */
+    return Object.values(bySeq).map(function(p){ return buildPosNode(op, p, bySeq, childrenBySeq, 1); });
+  }
+  var children = buildPosNode(op, root, bySeq, childrenBySeq, 1).children;
+  children.forEach(function(c){ if(c.leaf) c.isRoot = true; });
+  return children;
+}
+/* Excedente global (vs BOM padrao) por referencia, para marcar na arvore a
+   ocorrencia onde o consumo extra apareceu. */
+function excessoGlobalPorRef(op){
+  if(!bomAplicavel(op)) return {};
+  var map = {};
+  analisaExcedenteBase(op).forEach(function(l){ map[l.ref] = l.qtdExcedente; });
+  return map;
+}
+/* Decide se esta ocorrencia da folha mostra linha de excedente:
+   1) consumo efetivo > previsto na propria linha (retrabalho dentro do conjunto); ou
+   2) BOM padrao carregado, a referencia tem excedente global e esta ocorrencia esta
+      na raiz da maquina enquanto a referencia tambem existe dentro de um CJ - o item
+      "solto" na raiz e' justamente a reposicao/quebra (ex: Motor de Passo 7 vs 6). */
+function leafExcessInfo(l, globalExc){
+  if(l.excessQty>0) return {qty:l.excessQty, cost:l.excessCost};
+  if(l.isRoot && globalExc && globalExc[l.ref]>0 && seqOpsParaRef(l.op, l.ref).length>1){
+    var q = Math.min(l.qtdShow||0, globalExc[l.ref]);
+    if(q>0.001) return {qty:q, cost:q*(l.unitCost||0)};
+  }
+  return null;
+}
 function nodeFullTotal(node){
   if(node.leaf) return node.custo||0;
-  var t = node.ownTotal||0;
-  node.children.forEach(function(c){ if(!c.leaf) t += nodeFullTotal(c); });
-  return t;
+  return node.children.reduce(function(s,c){ return s+nodeFullTotal(c); },0);
+}
+function nodeExcessTotal(node){
+  var e = node.excessCost||0;
+  if(node.leaf) return e;
+  return e + node.children.reduce(function(s,c){ return s+nodeExcessTotal(c); },0);
 }
 function nodeLeafCount(node){
   if(node.leaf) return 1;
@@ -1246,15 +1310,20 @@ function renderMaterialSubtabs(){
     });
   });
   var search = materialSearchTerm.trim().toLowerCase();
+  /* lotes p/ outras OPs vao para o fim da lista - nao compoem esta maquina */
   var filtered = tops.filter(function(t){ return !search || nodeMatches(t.node, search); })
-    .sort(function(a,b){ return b.total-a.total; });
-  var grandTotal = tops.reduce(function(s,t){ return s+t.total; },0);
+    .sort(function(a,b){
+      if(!!a.node.isLote !== !!b.node.isLote) return a.node.isLote ? 1 : -1;
+      return b.total-a.total;
+    });
+  /* % calculado so sobre o que compoe a maquina - lotes p/ outras OPs ficam fora da base */
+  var grandTotal = tops.reduce(function(s,t){ return s + (t.node.isLote ? 0 : t.total); },0);
   var max = Math.max.apply(null, filtered.map(function(t){ return t.total; }).concat([1]));
   wrap.innerHTML = filtered.map(function(t,i){
     var n = t.node;
     var share = max>0 ? (t.total/max*100) : 0;
-    var pct = grandTotal>0 ? (t.total/grandTotal*100).toFixed(1)+'%' : '';
-    var sub = n.leaf ? 'insumo direto' : t.count+' componente'+(t.count>1?'s':'');
+    var pct = n.isLote ? 'lote' : (grandTotal>0 ? (t.total/grandTotal*100).toFixed(1)+'%' : '');
+    var sub = n.leaf ? 'insumo direto' : t.count+' componente'+(t.count>1?'s':'')+(n.isLote?' · lote p/ outras OPs':'');
     return '<button type="button" class="material-rank-item'+(t.key===currentGroupKey?' active':'')+'" style="--share:'+share+'%" data-key="'+htmlEscape(t.key)+'">' +
       '<span>'+String(i+1).padStart(2,'0')+'</span>' +
       '<span class="material-rank-main"><strong>'+htmlEscape(n.desc||n.code)+'</strong><small>'+sub+'</small></span>' +
@@ -1274,15 +1343,16 @@ function renderMaterialContent(topList){
   if(!t){ content.innerHTML = '<div class="material-empty">Selecione um grupo no ranking para ver o detalhamento.</div>'; return; }
   var node = t.node;
   var bomOk = bomAplicavel(node.op);
+  var qtyTxt = node.leaf ? (fmtQty(node.qtdShow)+' '+(node.un||'')) : (node.consumedQty!=null ? fmtQty(node.consumedQty)+' '+(node.consumedUn||'') : '');
   var headMeta = node.leaf
-    ? 'Cod. '+htmlEscape(node.code)+' · insumo direto da posicao raiz (sem sub-estrutura)'
-    : 'Cod. '+htmlEscape(node.code)+' · Ref. '+htmlEscape(node.ref)+' · Seq.OP '+htmlEscape(node.seqOp)+' · '+t.count+' componente'+(t.count>1?'s':'')+'. Clique em um sub-conjunto para visualizar seus componentes por nivel.';
+    ? 'Cod. '+htmlEscape(node.code)+(qtyTxt?' · '+htmlEscape(qtyTxt):'')+' · insumo direto da maquina (sem sub-estrutura)'
+    : 'Cod. '+htmlEscape(node.code)+(qtyTxt?' · '+htmlEscape(qtyTxt)+' por maquina':'')+' · Seq.OP '+htmlEscape(node.seqOp)+' · '+t.count+' componente'+(t.count>1?'s':'')+'. Clique em um sub-conjunto para visualizar seus componentes por nivel.';
   content.innerHTML =
     '<div class="material-detail-head"><h3 id="materialDetailTitle">'+htmlEscape(node.desc||node.code)+'</h3><span class="cost">'+fmt(t.total)+'</span></div>' +
     '<div class="subtle" style="margin-bottom:10px;">'+headMeta+'</div>' +
     (bomOk ? '<div class="subtle" style="margin-bottom:10px;">Comparado com BOM padrao: '+htmlEscape(BOM_PADRAO.rootDesc)+' — colunas "Padrao" e "Desvio" nos componentes-folha.</div>' : '') +
-    (node.leaf ? '<div class="material-tree">'+renderMatLeaves([node], bomOk)+'</div>'
-               : renderMatTree(node.children, t.key, 1, bomOk));
+    (node.leaf ? '<div class="material-tree">'+renderMatLeaves([node], bomOk, excessoGlobalPorRef(node.op))+'</div>'
+               : renderMatTree(node.children, t.key, 1, bomOk, true, excessoGlobalPorRef(node.op)));
   bindCcHover($('#materialDetailTitle'), node.ref, node.op, !node.leaf, node.desc||node.code);
   content.querySelectorAll('.tree-head[data-toggle-path]').forEach(function(btn){
     btn.addEventListener('click', function(){
@@ -1290,41 +1360,81 @@ function renderMaterialContent(topList){
       materialOpenPaths[p] = !materialOpenPaths[p];
       btn.closest('.tree-block').classList.toggle('open', materialOpenPaths[p]);
     });
-    bindCcHover(btn, btn.dataset.ref, btn.dataset.op, true, btn.dataset.label);
+    bindCcHover(btn, btn.dataset.ref, btn.dataset.op, btn.dataset.issub==='1', btn.dataset.label);
   });
   content.querySelectorAll('.tree-leaf').forEach(function(el){
-    bindCcHover(el, el.dataset.ref, el.dataset.op, el.dataset.issub==='1', el.dataset.label);
+    bindCcHover(el, el.dataset.ref, el.dataset.op, false, el.dataset.label);
   });
 }
-/* Um "no" (posicao/CJ) vira um bloco recolhivel com sua propria arvore de filhos;
-   um insumo-folha (materia-prima de verdade, sem posicao propria) vira uma linha
-   simples. Quando um bloco mistura sub-conjuntos e insumos diretos, os insumos
-   diretos ficam destacados a parte ("Componentes diretos"), como no relatorio de
-   referencia da diretoria. */
-function renderMatTree(nodes, path, depth, bomOk){
+function fmtQty(v){
+  if(v==null || v==='') return '';
+  var n = Number(v);
+  if(isNaN(n)) return String(v);
+  return (Math.abs(n-Math.round(n))<0.005) ? String(Math.round(n)) : n.toLocaleString('pt-BR',{maximumFractionDigits:2});
+}
+function excessLineHtml(desc, un, qty, unitCost, cost){
+  if(!(qty>0)) return '';
+  return '<div class="tree-excess" title="Consumo acima do previsto no BOM - possivel retrabalho/perda/quebra. Nao esta somado no custo do conjunto.">' +
+    '<span>⚠ excedente</span>' +
+    '<span>'+htmlEscape(desc)+'</span>' +
+    '<span class="tree-num">+'+fmtQty(qty)+(un?' '+htmlEscape(un):'')+'</span>' +
+    '<span class="tree-num">'+fmt(unitCost||0)+'</span>' +
+    '<span class="tree-num" style="font-weight:800;">+'+fmt(cost||0)+'</span>' +
+  '</div>';
+}
+/* Estrutura igual ao relatorio de referencia da diretoria:
+   - sub-conjunto (posicao propria via Origem Seq.) = bloco recolhivel com cabecalho
+     "DESC (cod.X - qtd UN)" e sua arvore interna;
+   - no primeiro nivel do grupo selecionado, cada insumo direto tambem vira um
+     bloquinho proprio ("1 componente"), como no modelo antigo;
+   - nos niveis internos, insumos diretos aparecem como linhas simples agrupadas;
+   - consumo acima do previsto vira linha "excedente" logo abaixo do item. */
+function renderMatTree(nodes, path, depth, bomOk, wrapLeaves, globalExc){
   var branches = nodes.filter(function(n){ return !n.leaf; }).sort(function(a,b){ return nodeFullTotal(b)-nodeFullTotal(a); });
-  var leaves = nodes.filter(function(n){ return n.leaf; }).sort(function(a,b){ return b.custo-a.custo; });
+  var leaves = nodes.filter(function(n){ return n.leaf; }).sort(function(a,b){ return (b.custo||0)-(a.custo||0); });
   var branchHtml = branches.map(function(node){
-    var id = path+'>'+node.code;
+    var id = path+'>'+node.seqOp;
     var isOpen = !!materialOpenPaths[id];
     var total = nodeFullTotal(node);
     var leafCount = nodeLeafCount(node);
+    var qtyTag = node.consumedQty!=null ? ' <span class="muted">(cod.'+htmlEscape(node.code)+' - '+fmtQty(node.consumedQty)+' '+htmlEscape(node.consumedUn||node.un||'')+')</span>' : ' <span class="muted">(cod.'+htmlEscape(node.code)+')</span>';
+    var loteBadge = node.isLote ? ' <span class="pill warn" title="Lote fabricado nesta OP mas nao consumido por este conjunto - produzido para outras maquinas/estoque. Valores mostrados sao do lote inteiro.">lote p/ outras OPs</span>'
+      : (node.loteInfo ? ' <span class="pill" title="Posicao fabricou '+fmtQty(node.loteInfo.produzido)+' e este conjunto usa '+fmtQty(node.loteInfo.usado)+' - valores internos rateados para mostrar so o que esta maquina usa.">lote '+fmtQty(node.loteInfo.produzido)+' · usa '+fmtQty(node.loteInfo.usado)+'</span>' : '');
     return '<div class="tree-block depth-'+Math.min(depth,3)+(isOpen?' open':'')+'">' +
-      '<button class="tree-head" type="button" data-toggle-path="'+htmlEscape(id)+'" data-ref="'+htmlEscape(node.ref)+'" data-op="'+htmlEscape(node.op)+'" data-label="'+htmlEscape(node.desc)+'">' +
-        '<span><span class="chevron" aria-hidden="true"></span><strong>'+htmlEscape(node.desc)+'</strong><small>cod. '+htmlEscape(node.code)+' · Seq '+htmlEscape(node.seqOp)+' · '+leafCount+' componente'+(leafCount>1?'s':'')+'</small></span>' +
-        '<span class="component-count">sub-conjunto</span>' +
+      '<button class="tree-head" type="button" data-toggle-path="'+htmlEscape(id)+'" data-ref="'+htmlEscape(node.ref)+'" data-op="'+htmlEscape(node.op)+'" data-issub="1" data-label="'+htmlEscape(node.desc)+'">' +
+        '<span><span class="chevron" aria-hidden="true"></span><strong>'+htmlEscape(node.desc)+'</strong>'+qtyTag+loteBadge+
+          '<small>Seq '+htmlEscape(node.seqOp)+' · '+leafCount+' componente'+(leafCount>1?'s':'')+'</small></span>' +
+        '<span class="component-count">subtotal</span>' +
         '<span class="tree-cost">'+fmt(total)+'</span>' +
       '</button>' +
-      '<div class="tree-body">'+renderMatTree(node.children, id, depth+1, bomOk)+'</div>' +
-    '</div>';
+      '<div class="tree-body">'+renderMatTree(node.children, id, depth+1, bomOk, false, globalExc)+'</div>' +
+    '</div>' + excessLineHtml(node.desc, node.consumedUn||node.un, node.excessQty, node.unitCost, node.excessCost);
   }).join('');
-  var leafHtml = renderMatLeaves(leaves, bomOk);
+  var leafHtml;
+  if(wrapLeaves){
+    /* primeiro nivel do grupo: cada insumo direto vira um bloquinho proprio, igual ao modelo antigo */
+    leafHtml = leaves.map(function(l,i){
+      var id = path+'>leaf'+i+'-'+l.code;
+      var isOpen = !!materialOpenPaths[id];
+      var ex = leafExcessInfo(l, globalExc);
+      return '<div class="tree-block depth-'+Math.min(depth,3)+(isOpen?' open':'')+'">' +
+        '<button class="tree-head" type="button" data-toggle-path="'+htmlEscape(id)+'" data-ref="'+htmlEscape(l.ref||l.code)+'" data-op="'+htmlEscape(l.op)+'" data-issub="0" data-label="'+htmlEscape(l.desc)+'">' +
+          '<span><span class="chevron" aria-hidden="true"></span><strong>'+htmlEscape(l.desc)+'</strong> <span class="muted">(cod.'+htmlEscape(l.code)+' - '+fmtQty(l.qtdShow)+' '+htmlEscape(l.un||'')+')</span></span>' +
+          '<span class="component-count">1 componente</span>' +
+          '<span class="tree-cost">'+fmt(l.custo)+'</span>' +
+        '</button>' +
+        '<div class="tree-body"><div class="material-tree">'+renderMatLeaves([l], bomOk, globalExc, true)+'</div></div>' +
+      '</div>' + (ex ? excessLineHtml(l.desc, l.un, ex.qty, l.unitCost, ex.cost) : '');
+    }).join('');
+    return '<div class="material-tree">'+branchHtml+leafHtml+'</div>';
+  }
+  leafHtml = renderMatLeaves(leaves, bomOk, globalExc);
   var directHtml = (branches.length && leaves.length) ?
     '<div class="tree-direct"><div class="tree-direct-head"><strong>Componentes diretos deste conjunto</strong><span>'+leaves.length+' item'+(leaves.length>1?'s':'')+'</span><span class="tree-cost">'+fmt(leaves.reduce(function(s,n){ return s+(n.custo||0); },0))+'</span></div><div class="tree-direct-body">'+leafHtml+'</div></div>'
     : leafHtml;
   return '<div class="material-tree">'+branchHtml+directHtml+'</div>';
 }
-function renderMatLeaves(leaves, bomOk){
+function renderMatLeaves(leaves, bomOk, globalExc, suppressExcess){
   return leaves.map(function(l){
     var bomCols = '';
     if(bomOk){
@@ -1343,13 +1453,14 @@ function renderMatLeaves(leaves, bomOk){
       }
     }
     var unitTxt = (l.unitCost!=null && l.unitCost!==0) ? fmt(l.unitCost) : '<span class="muted">—</span>';
-    return '<div class="tree-leaf'+(bomOk?' tree-leaf-bom':'')+'" data-ref="'+htmlEscape(l.ref||l.code)+'" data-op="'+htmlEscape(l.op)+'" data-issub="'+(l.isSub?'1':'0')+'" data-label="'+htmlEscape(l.desc)+'">' +
-      '<span class="tree-code">'+htmlEscape(l.ref||l.code)+'</span>' +
-      '<span class="tree-desc">'+htmlEscape(l.desc)+(l.isSub?' <span class="pill warn" title="Este sub-conjunto ja aparece expandido em outra posicao desta OP - custo contado la, nao aqui">outra ocorrência</span>':'')+'</span>' +
-      '<span class="tree-num">'+(l.qtd!=null?l.qtd:'')+(l.un?' '+htmlEscape(l.un):'')+'</span>' +
+    var ex = suppressExcess ? null : leafExcessInfo(l, globalExc);
+    return '<div class="tree-leaf'+(bomOk?' tree-leaf-bom':'')+'" data-ref="'+htmlEscape(l.ref||l.code)+'" data-op="'+htmlEscape(l.op)+'" data-label="'+htmlEscape(l.desc)+'">' +
+      '<span class="tree-code">'+htmlEscape(l.code)+'</span>' +
+      '<span class="tree-desc">'+htmlEscape(l.desc)+'</span>' +
+      '<span class="tree-num">'+fmtQty(l.qtdShow)+(l.un?' '+htmlEscape(l.un):'')+'</span>' +
       '<span class="tree-num">'+unitTxt+'</span>' +
       '<span class="tree-num tree-total">'+fmt(l.custo)+'</span>' + bomCols +
-    '</div>';
+    '</div>' + (ex ? excessLineHtml(l.desc, l.un, ex.qty, l.unitCost, ex.cost) : '');
   }).join('');
 }
 /* Painel unico (igual ao anexo da diretoria): rateio real e custo inferido de outra
