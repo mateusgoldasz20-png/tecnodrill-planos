@@ -1,0 +1,1592 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TECNODRILL · Custo de Produção</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#08090b; --panel:#141414; --panel-2:#1d2026; --panel-3:#232832; --line:#30343c;
+    --red:#E8000D; --red-soft:#ff4b55; --green:#20c997; --amber:#f6c453;
+    --text:#f5f7fb; --muted:#a8afbc; --muted-2:#737b89;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; -webkit-font-smoothing:antialiased;}
+  h1,h2,h3,.disp{font-family:'Barlow Condensed',sans-serif; text-transform:uppercase; letter-spacing:0.02em;}
+  .wrap{max-width:none; padding:26px 24px 70px;}
+
+  .app-shell{display:grid; grid-template-columns:202px minmax(0,1fr); min-height:100vh;}
+  .sidebar{position:sticky; top:0; height:100vh; background:#0b0b0c; border-right:1px solid var(--line); padding:18px 10px; overflow:auto;}
+  .side-brand{display:flex; align-items:center; gap:10px; padding:4px 8px 24px;}
+  .brand-mark{width:36px;height:36px;flex:0 0 36px;border-radius:8px;background:var(--red);display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:16px;color:#fff;}
+  .side-brand strong{font-family:'Barlow Condensed',sans-serif; font-size:20px; letter-spacing:.08em;}
+  .side-brand div span{display:block; color:var(--muted-2); font-size:10px; letter-spacing:.16em; text-transform:uppercase; margin-top:1px;}
+  .side-nav{display:flex; flex-direction:column; gap:6px;}
+  .side-nav a{display:flex; align-items:center; gap:10px; min-height:42px; padding:10px 12px; color:var(--muted); text-decoration:none; border-radius:6px; border:1px solid transparent; font-weight:600; font-size:14px;}
+  .side-nav a.active{background:#3a070b; color:#fff; border-color:#4e0b10;}
+  .side-nav a:hover{color:#fff; border-color:var(--line); background:#141414;}
+  .nav-ico{width:14px; color:#fff; text-align:center; font-size:15px;}
+  .main-shell{min-width:0;}
+  .topbar{min-height:72px; display:flex; align-items:center; justify-content:space-between; gap:18px; padding:12px 24px; background:#101011; border-bottom:1px solid var(--line); position:sticky; top:0; z-index:5; flex-wrap:wrap;}
+  .topbar-title{display:flex; align-items:center; gap:12px; min-width:0; flex-wrap:wrap;}
+  .topbar-title .scope{color:var(--muted); border:1px solid var(--line); background:#18191c; border-radius:18px; padding:7px 12px; font-size:12px; white-space:nowrap;}
+  .topbar-actions{display:flex; align-items:center; gap:8px; flex-wrap:wrap; justify-content:flex-end;}
+  .filter-chip{border:1px solid var(--line); background:#121316; color:var(--text); padding:10px 14px; min-height:40px; font-weight:700;}
+
+  .op-picker{position:relative; min-width:220px;}
+  .op-picker input{width:100%; min-height:40px; padding:9px 12px; background:#0f1115; border:1px solid var(--line); color:#fff; font-weight:600; outline:none; font-size:13px;}
+  .op-picker input:focus{border-color:var(--red);}
+  .op-picker-list{position:absolute; top:calc(100% + 4px); left:0; right:0; max-height:280px; overflow-y:auto; background:#141518; border:1px solid var(--line); z-index:20; display:none;}
+  .op-picker-list.open{display:block;}
+  .op-picker-item{padding:9px 12px; cursor:pointer; font-size:13px; border-bottom:1px solid #23262c;}
+  .op-picker-item:hover{background:#1f2126;}
+  .op-picker-item small{display:block; color:var(--muted); font-size:11px; margin-top:2px;}
+  .op-chip{display:inline-flex; align-items:center; gap:8px; padding:8px 10px 8px 14px; background:#1a0507; border:1px solid #4e0b10; border-radius:999px; font-weight:700; font-size:13px;}
+  .op-chip button{background:transparent; border:0; color:var(--muted); cursor:pointer; font-size:15px; line-height:1; padding:2px;}
+  .op-chip button:hover{color:#fff;}
+
+  .btn{border:1px solid var(--red); background:var(--red); color:white; font-family:'Inter',sans-serif; font-weight:700; padding:10px 14px; cursor:pointer; min-height:40px; text-decoration:none; display:inline-flex; align-items:center; justify-content:center;}
+  .btn.secondary{background:transparent; color:var(--text); border-color:var(--line);}
+  .btn.export{min-width:150px;}
+  .btn:disabled{opacity:.4; cursor:not-allowed;}
+
+  .tabs{display:flex; gap:8px; margin-bottom:18px;}
+  .tab{flex:1; padding:14px 18px; background:#111214; border:1px solid var(--line); border-radius:6px; cursor:pointer; font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:18px; letter-spacing:0.03em; color:var(--muted); position:relative; transition:all .15s;}
+  .tab small{display:block; font-family:'Inter',sans-serif; font-weight:400; font-size:11px; color:var(--muted); text-transform:none; letter-spacing:0; margin-top:2px;}
+  .tab.active{background:#1a0507; color:var(--text); border-color:var(--red);}
+  .tab.active::after{content:""; position:absolute; left:0; right:0; bottom:-1px; height:3px; background:var(--red);}
+
+  .cards{display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:30px;}
+  .card{position:relative; overflow:hidden; border-radius:6px; background:linear-gradient(180deg,var(--panel-2),var(--panel)); border:1px solid var(--line); border-left:3px solid var(--red); padding:18px 18px 16px; min-height:96px;}
+  .card::after{content:""; position:absolute; right:-22px; top:-18px; width:88px; height:88px; border:1px solid rgba(255,255,255,.06); transform:rotate(45deg);}
+  .card .lbl{font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:0.07em; margin-bottom:8px;}
+  .card .val{font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:30px; line-height:1; text-shadow:2px 2px 0 #000;}
+  .card .val.pending{color:var(--muted); font-size:17px; text-shadow:none;}
+  .card.total{border-left-color:var(--red); background:linear-gradient(135deg,#2b070b,var(--panel));}
+  .card.total .val{color:var(--red);}
+
+  .executive-brief{display:grid; grid-template-columns:1.1fr 0.9fr; gap:14px; margin-bottom:18px;}
+  .brief-main,.rate-panel{background:var(--panel); border:1px solid var(--line); padding:18px; border-radius:6px;}
+  .brief-title{display:flex; align-items:flex-start; justify-content:space-between; gap:14px; margin-bottom:16px;}
+  .brief-title h2{font-size:24px; margin:0; text-shadow:2px 2px 0 #000;}
+  .brief-title p{margin:4px 0 0; color:var(--muted); font-size:12.5px; line-height:1.45;}
+  .summary-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:10px;}
+  .metric{border:1px solid var(--line); background:var(--panel-2); padding:14px; min-height:94px;}
+  .metric .k{font-size:10.5px; text-transform:uppercase; letter-spacing:.07em; color:var(--muted); margin-bottom:8px;}
+  .metric .v{font-family:'Barlow Condensed',sans-serif; font-size:28px; font-weight:700; line-height:1;}
+  .metric .s{font-size:11.5px; color:var(--muted); margin-top:8px; line-height:1.35;}
+  .analysis-panel{background:var(--panel); border:1px solid var(--line); border-left:3px solid var(--red); padding:18px; margin:18px 0; border-radius:6px;}
+  .analysis-panel h2{font-size:24px; margin:0 0 8px; text-shadow:2px 2px 0 #000;}
+  .analysis-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:12px;}
+  .analysis-item{background:#17191e; border:1px solid #2b2f38; padding:12px; min-height:92px;}
+  .analysis-item strong{display:block; color:#fff; margin-bottom:6px;}
+  .analysis-item span{display:block; color:var(--muted); font-size:12px; line-height:1.4;}
+  .rate-panel h2{font-size:20px; margin:0 0 8px;}
+  .rate-panel p{margin:0 0 14px; color:var(--muted); font-size:12.5px; line-height:1.45;}
+  .rate-actions{display:flex; justify-content:flex-start; gap:8px; align-items:center; margin-bottom:14px; flex-wrap:wrap;}
+  .progress{height:9px; background:#0f1115; border:1px solid var(--line); overflow:hidden;}
+  .progress span{display:block; height:100%; width:0%; background:linear-gradient(90deg,var(--red),var(--green)); transition:width .2s;}
+  .progress-meta{display:flex; justify-content:space-between; color:var(--muted); font-size:11.5px; margin-top:8px;}
+  .status-line{display:flex; gap:8px; align-items:center; color:var(--muted); font-size:12px; margin-top:10px;}
+  .status-dot{width:8px; height:8px; border-radius:50%; background:var(--amber); display:inline-block;}
+  .status-dot.ok{background:var(--green);}
+
+  section{margin-bottom:34px; scroll-margin-top:92px;}
+  .sec-head{display:flex; align-items:baseline; justify-content:space-between; margin-bottom:14px; gap:12px; flex-wrap:wrap;}
+  .sec-head h2{font-size:24px; margin:0; font-weight:700; text-shadow:2px 2px 0 #000;}
+  .sec-head .note{font-size:12px; color:var(--muted); font-family:'Inter',sans-serif;}
+
+  table{width:100%; border-collapse:collapse; font-size:13.5px;}
+  thead th{text-align:left; font-family:'Barlow Condensed',sans-serif; font-weight:600; font-size:11.5px; text-transform:uppercase; letter-spacing:0.06em; color:var(--muted); border-bottom:1px solid var(--line); padding:8px 10px; position:sticky; top:0; background:var(--panel);}
+  tbody td{padding:8px 10px; border-bottom:1px solid var(--line); color:var(--text);}
+  tbody tr:hover{background:var(--panel-2);}
+  td.num, th.num{text-align:right; font-variant-numeric:tabular-nums;}
+  tfoot td{padding:10px; font-weight:700; border-top:2px solid var(--red); font-variant-numeric:tabular-nums;}
+  .muted{color:var(--muted);}
+  .subtle{color:var(--muted); font-size:12px;}
+
+  .rate-input{width:96px; background:#0f1115; border:1px solid var(--line); color:var(--text); font-family:'Inter',sans-serif; font-weight:700; padding:7px 8px; text-align:right; font-size:13px;}
+  .rate-input:focus{outline:none; border-color:var(--red); box-shadow:0 0 0 2px rgba(232,0,13,.18);}
+  tr.missing-rate td{background:rgba(246,196,83,.045);}
+
+  .panel{background:var(--panel); border:1px solid var(--line); padding:18px; border-radius:6px;}
+  .chart-box{position:relative; height:340px;}
+  .scroll-box{max-height:480px; overflow-y:auto; border:1px solid var(--line);}
+  .scroll-box table thead th{position:sticky; top:0;}
+  #terceiros .single-panel{display:grid; grid-template-columns:minmax(420px,760px); gap:14px;}
+  .terc-raw-toggle{margin-top:14px;}
+  .terc-raw-toggle summary{cursor:pointer; color:var(--muted); font-size:12.5px; font-weight:600; padding:8px 0; list-style:none;}
+  .terc-raw-toggle summary::-webkit-details-marker{display:none;}
+  .terc-raw-toggle summary::before{content:"▸ "; color:var(--red);}
+  .terc-raw-toggle[open] summary::before{content:"▾ "; color:var(--red);}
+  .terc-raw-toggle summary:hover{color:var(--text);}
+
+  .pill{display:inline-block; font-size:10.5px; padding:2px 8px; border:1px solid var(--line); border-radius:2px; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em;}
+  .pill.op{border-color:#3a3a3a; color:#ccc; font-weight:700;}
+  .pill.ok{border-color:rgba(32,201,151,.55); color:var(--green);}
+  .pill.warn{border-color:rgba(246,196,83,.7); color:var(--amber);}
+  .pill.bad{border-color:rgba(232,0,13,.55); color:var(--red-soft);}
+
+  .material-layout{display:grid; grid-template-columns:minmax(320px,380px) minmax(0,1fr); gap:14px; align-items:start;}
+  .material-ranking{background:var(--panel); border:1px solid var(--line); padding:14px; border-radius:6px;}
+  .material-ranking-title{display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:12px;}
+  .material-ranking-title h3{margin:0; font-size:18px; text-transform:uppercase; color:#fff; text-shadow:2px 2px 0 #000;}
+  .material-ranking-title span{font-size:10px; color:var(--muted-2); text-transform:uppercase; letter-spacing:.08em;}
+  .material-search{width:100%; min-height:38px; margin-bottom:12px; padding:9px 10px; background:#0f1115; border:1px solid var(--line); color:#fff; font-weight:600; outline:none;}
+  .material-search:focus{border-color:var(--red);}
+  .material-list{display:flex; flex-direction:column; gap:8px;}
+  .material-rank-item{display:grid; grid-template-columns:34px minmax(0,1fr) auto; gap:10px; align-items:center; min-height:54px; padding:9px 10px; background:#17191e; border:1px solid #2b2f38; border-left:4px solid var(--red); color:var(--text); cursor:pointer; text-align:left; position:relative; overflow:hidden; width:100%;}
+  .material-rank-item::before{content:""; position:absolute; inset:0 auto 0 0; width:var(--share,0%); background:linear-gradient(90deg,rgba(232,0,13,.32),rgba(232,0,13,0)); pointer-events:none;}
+  .material-rank-item > *{position:relative; z-index:1;}
+  .material-rank-item.active{border-color:var(--red); background:#221014;}
+  .material-rank-main{min-width:0;}
+  .material-rank-main strong{display:block; color:#fff; font-size:13px; line-height:1.25;}
+  .material-rank-main small{display:block; color:var(--muted); font-size:11px; margin-top:3px;}
+  .material-rank-value{text-align:right; white-space:nowrap;}
+  .material-rank-value strong{display:block; color:#fff; font-size:13px;}
+  .material-rank-value small{display:block; color:var(--red); font-size:11px; font-weight:800; margin-top:3px;}
+  .material-detail-panel{background:var(--panel); border:1px solid var(--line); padding:18px; border-radius:6px; min-height:220px;}
+  .material-empty{min-height:220px; display:grid; place-items:center; color:var(--muted); text-align:center; border:1px dashed #343945; background:#111318;}
+  .material-detail-head{display:flex; justify-content:space-between; gap:14px; align-items:flex-start; margin-bottom:14px;}
+  .material-detail-head h3{margin:0; font-size:20px; text-transform:uppercase; color:#fff; text-shadow:2px 2px 0 #000;}
+  .material-detail-head .cost{color:var(--red); font-weight:800; white-space:nowrap;}
+
+  .tree-block{border:1px solid #30343c; background:#15171c; min-width:0; margin-bottom:6px;}
+  .tree-head{width:100%; border:0; border-left:3px solid var(--red); background:#1d2026; color:var(--text); display:grid; grid-template-columns:minmax(0,1fr) auto auto; gap:8px; align-items:center; padding:8px 9px; text-align:left; cursor:pointer; min-width:0;}
+  .tree-head > span:first-child{min-width:0;}
+  .tree-head strong{font-family:'Barlow Condensed',sans-serif; font-size:13px; letter-spacing:.02em; text-transform:uppercase; overflow-wrap:anywhere;}
+  .tree-head small{display:block; color:var(--muted); font-size:10px; margin-top:2px; overflow-wrap:anywhere;}
+  .tree-head .tree-cost{color:var(--red); font-weight:800; white-space:nowrap;}
+  .chevron{display:inline-block; width:0; height:0; border-top:5px solid transparent; border-bottom:5px solid transparent; border-left:7px solid var(--text); transition:transform .15s; margin-right:8px; vertical-align:middle;}
+  .tree-block.open > .tree-head .chevron{transform:rotate(90deg);}
+  .tree-body{display:none; border-top:1px solid var(--line); padding:6px;}
+  .tree-block.open > .tree-body{display:block;}
+  .tree-leaf{display:grid; grid-template-columns:minmax(64px,.6fr) minmax(160px,2.2fr) minmax(64px,.7fr) minmax(84px,.9fr) minmax(90px,1fr); gap:8px; align-items:center; border:1px solid #2b2f38; background:#111318; padding:7px 9px; margin-bottom:5px; max-width:100%; min-width:0; font-size:12px;}
+  .tree-leaf.tree-leaf-bom{grid-template-columns:minmax(56px,.5fr) minmax(130px,1.8fr) minmax(50px,.6fr) minmax(70px,.8fr) minmax(80px,.9fr) minmax(50px,.55fr) minmax(100px,.9fr);}
+  .tree-leaf:hover{background:#181b21;}
+  .tree-code{color:#dce7ff; font-weight:800; font-size:10.5px; min-width:0; overflow-wrap:anywhere;}
+  .tree-desc{font-weight:700; font-size:12.5px; line-height:1.22; min-width:0; overflow-wrap:anywhere;}
+  .tree-num{text-align:right; font-size:12px; font-variant-numeric:tabular-nums; white-space:nowrap; min-width:0;}
+  .tree-total{color:#fff; font-weight:800;}
+  .component-count{display:inline-flex; align-items:center; gap:5px; margin-left:8px; color:var(--muted); font-family:'Inter',sans-serif; font-size:11px; font-weight:700;}
+  .material-tree{display:flex; flex-direction:column; gap:6px; padding:8px; background:#101115; min-width:0;}
+  .tree-body .material-tree{padding:6px 6px 6px 10px;}
+  .tree-block.depth-1{margin-left:6px;}
+  .tree-block.depth-2{margin-left:10px;}
+  .tree-block.depth-3{margin-left:14px;}
+  .tree-direct{border:1px solid #2b2f38; border-left:3px solid #555b66; background:#121419;}
+  .tree-direct-head{display:grid; grid-template-columns:minmax(0,1fr) auto auto; align-items:center; gap:8px; padding:7px 9px; background:#181b21; color:var(--muted); font-size:10.5px; font-weight:800; text-transform:uppercase; letter-spacing:.04em;}
+  .tree-direct-head strong{color:#fff; font-family:'Barlow Condensed',sans-serif; font-size:13px;}
+  .tree-direct-head .tree-cost{color:var(--red);}
+  .tree-direct-body{display:flex; flex-direction:column; gap:5px; padding:6px;}
+
+  .dashboard-grid{display:grid; grid-template-columns:minmax(0,1.45fr) minmax(320px,.75fr); gap:14px;}
+  .ranking-panel{background:var(--panel); border:1px solid var(--line); padding:18px; border-radius:6px; overflow:hidden;}
+  .ranking-title{display:flex; justify-content:space-between; gap:12px; margin-bottom:14px; align-items:flex-start;}
+  .ranking-title h3{font-size:20px; margin:0; text-transform:uppercase; color:#fff; text-shadow:2px 2px 0 #000;}
+  .ranking-title span{font-size:10px; color:var(--muted-2); text-transform:uppercase; letter-spacing:.08em;}
+  .ranking-list{display:flex; flex-direction:column; gap:8px;}
+  .ranking-row{display:grid; grid-template-columns:34px minmax(0,1fr) auto; gap:10px; align-items:center; min-height:44px; padding:9px 10px; background:#17191e; border:1px solid #2b2f38; border-left:4px solid var(--red); position:relative; overflow:hidden;}
+  .ranking-row::before{content:""; position:absolute; inset:0 auto 0 0; width:var(--share,0%); background:linear-gradient(90deg,rgba(232,0,13,.32),rgba(232,0,13,0)); pointer-events:none;}
+  .ranking-row > *{position:relative; z-index:1;}
+  .rank{color:var(--muted); font-family:'Barlow Condensed',sans-serif; font-size:18px; font-weight:800; text-align:right;}
+  .ranking-cc{min-width:0;}
+  .ranking-cc strong{display:block; color:#fff; font-size:13px; line-height:1.25;}
+  .ranking-cc small{display:block; color:var(--muted); font-size:11px; margin-top:3px;}
+  .ranking-value{text-align:right; white-space:nowrap;}
+  .ranking-value strong{display:block; color:#fff; font-size:13px;}
+  .ranking-value small{display:block; color:var(--red); font-size:11px; font-weight:800; margin-top:3px;}
+
+  .cc-tooltip{position:fixed; z-index:100; background:#15171c; border:1px solid var(--red); padding:10px 12px; font-size:12px; color:var(--text); max-width:280px; box-shadow:0 8px 24px rgba(0,0,0,.5); display:none; pointer-events:none;}
+  .cc-tooltip.show{display:block;}
+  .cc-tooltip .tt-title{font-family:'Barlow Condensed',sans-serif; font-weight:700; text-transform:uppercase; font-size:12px; margin-bottom:6px; color:#fff; letter-spacing:.02em;}
+  .cc-tooltip .tt-row{display:flex; justify-content:space-between; gap:14px; padding:2px 0; color:var(--muted);}
+  .cc-tooltip .tt-row b{color:#fff; font-weight:700; white-space:nowrap;}
+  .cc-tooltip .tt-note{margin-top:2px; margin-bottom:6px; font-size:10.5px; color:var(--muted-2); line-height:1.35;}
+  .material-detail-head h3{cursor:help;}
+  .tree-leaf{cursor:help;}
+
+  .upload-empty{display:grid; place-items:center; min-height:70vh; padding:40px 20px;}
+  .upload-box{width:min(560px,100%); text-align:center; background:var(--panel); border:1px dashed var(--line); border-radius:10px; padding:44px 30px;}
+  .upload-box h2{font-size:24px; margin:0 0 8px;}
+  .upload-box p{color:var(--muted); font-size:13.5px; margin:0 0 22px; line-height:1.5;}
+  .upload-drop{border:2px dashed var(--line); border-radius:8px; padding:30px; cursor:pointer; transition:border-color .15s,background .15s;}
+  .upload-drop:hover{border-color:var(--red); background:rgba(232,0,13,.05);}
+  .upload-drop input{display:none;}
+  .upload-err{margin-top:16px; padding:10px 14px; border:1px solid rgba(232,0,13,.4); background:rgba(232,0,13,.08); color:var(--red-soft); font-size:13px; text-align:left;}
+  .upload-loading{margin-top:16px; color:var(--muted); font-size:13px;}
+  .file-status{display:flex; align-items:center; gap:10px; color:var(--muted); font-size:12px;}
+  .file-status b{color:#fff;}
+
+  footer{margin-top:40px; padding-top:18px; border-top:1px solid var(--line); color:var(--muted); font-size:11.5px; display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px;}
+
+  @media(max-width:1050px){
+    .app-shell{grid-template-columns:1fr;}
+    .sidebar{position:relative; height:auto; display:none;}
+    .topbar{position:relative; height:auto; align-items:flex-start; flex-direction:column; padding:16px 20px;}
+    .dashboard-grid{grid-template-columns:1fr;}
+    .material-layout{grid-template-columns:1fr;}
+    .analysis-grid{grid-template-columns:1fr;}
+    .executive-brief{grid-template-columns:1fr;}
+    .summary-grid{grid-template-columns:1fr;}
+    .cards{grid-template-columns:repeat(2,1fr);}
+  }
+</style>
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="side-brand">
+      <span class="brand-mark">TD</span>
+      <div><strong>TECNODRILL</strong><span>Custo de Produção</span></div>
+    </div>
+    <nav class="side-nav">
+      <a class="active" data-tab="visao-geral" href="#visao-geral">▦ Visão Geral</a>
+      <a data-tab="mao-obra" href="#mao-obra">◷ Mão de Obra</a>
+      <a data-tab="materiais" href="#materiais">▤ Matéria-prima</a>
+      <a data-tab="terceiros" href="#terceiros">◇ Terceiros</a>
+      <a data-tab="excedente" href="#excedente">⚠ Excedente</a>
+    </nav>
+  </aside>
+  <main class="main-shell">
+    <div class="topbar">
+      <div class="topbar-title">
+        <span class="scope" id="scopeLabel">Nenhum arquivo carregado</span>
+      </div>
+      <div class="topbar-actions" id="topbarActions" hidden>
+        <div class="op-picker">
+          <input id="opSearchA" type="text" placeholder="Buscar OP principal...">
+          <div class="op-picker-list" id="opListA"></div>
+        </div>
+        <div class="op-picker">
+          <input id="opSearchB" type="text" placeholder="Comparar com OP (opcional)...">
+          <div class="op-picker-list" id="opListB"></div>
+        </div>
+        <button class="btn export" id="exportCsvBtn" type="button">Exportar CSV</button>
+        <button class="btn export secondary" id="exportPdfBtn" type="button">Exportar PDF</button>
+        <button class="btn secondary" id="bomPadraoBtn" type="button">Carregar BOM padrão</button>
+        <input id="bomPadraoInput" type="file" accept=".xlsx,.xls" hidden>
+        <span class="pill" id="bomPadraoStatus" style="display:none;"></span>
+        <button class="btn secondary" id="trocarArquivoBtn" type="button">Trocar arquivo</button>
+      </div>
+    </div>
+
+    <div class="wrap" id="uploadWrap">
+      <div class="upload-empty">
+        <div class="upload-box">
+          <h2>Carregar planilha de custos</h2>
+          <p>Envie o arquivo exportado do SIGER (abas "ITENS OP CUSTO", "ACOMP PROD" e "RET SERVC EXT") para calcular o custo de qualquer OP: matéria-prima, mão de obra e terceiros.</p>
+          <label class="upload-drop" id="uploadDrop">
+            <div id="uploadDropLabel">Clique ou arraste o XLSX aqui</div>
+            <input id="fileInput" type="file" accept=".xlsx,.xls">
+          </label>
+          <div class="upload-loading" id="uploadLoading" hidden>Processando planilha...</div>
+          <div class="upload-err" id="uploadErr" hidden></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="wrap" id="appWrap" hidden>
+
+      <div class="tabs" id="viewTabs"></div>
+
+      <section class="executive-brief" id="visao-geral">
+        <div class="brief-main">
+          <div class="brief-title">
+            <div>
+              <h2>Resumo Executivo</h2>
+              <p>Leitura direta para decisão: material e terceiros já vêm calculados do SIGER; mão de obra depende do preenchimento do R$/h por centro de custo.</p>
+            </div>
+            <span class="pill op" id="viewLabel">OP</span>
+          </div>
+          <div class="summary-grid" id="summaryRow"></div>
+        </div>
+        <div class="rate-panel">
+          <h2>Entrada da Diretoria</h2>
+          <p>Informe o valor hora por centro de custo. Os valores ficam salvos neste navegador (valem para todas as OPs) e podem ser exportados para apresentação.</p>
+          <div class="rate-actions">
+            <button class="btn export" id="exportCsvReport" type="button">Exportar CSV</button>
+            <button class="btn export secondary" id="exportPdfReport" type="button">Exportar PDF</button>
+          </div>
+          <div class="progress"><span id="rateProgressBar"></span></div>
+          <div class="progress-meta"><span id="rateProgressText">0 de 0 preenchidos</span><span id="rateMissingText">pendente</span></div>
+          <div class="status-line"><span class="status-dot" id="rateStatusDot"></span><span id="rateStatusText">Aguardando preenchimento dos R$/h.</span></div>
+        </div>
+      </section>
+
+      <div class="cards" id="cardsRow"></div>
+
+      <section class="analysis-panel" id="costAnalysisPanel">
+        <h2>Análise profunda dos custos</h2>
+        <div class="note">Leitura automática dos maiores ofensores e pontos de atenção para decisão.</div>
+        <div class="analysis-grid" id="costAnalysisGrid"></div>
+      </section>
+
+      <section id="opCompareSection" hidden>
+        <div class="sec-head">
+          <h2 id="compareTitle">Comparativo de OPs</h2>
+          <div class="note">Comparativo de custo total e de horas por centro de custo.</div>
+        </div>
+        <div class="dashboard-grid">
+          <div class="panel"><div class="chart-box"><canvas id="costCompareChart"></canvas></div></div>
+          <div class="ranking-panel">
+            <div class="ranking-title">
+              <h3>Ranking de custo por CC</h3>
+              <span>maior impacto</span>
+            </div>
+            <div class="ranking-list" id="costFunnel"></div>
+          </div>
+          <div class="panel"><div class="chart-box"><canvas id="barChart"></canvas></div></div>
+          <div class="panel"><div class="chart-box"><canvas id="pieChart"></canvas></div></div>
+        </div>
+      </section>
+
+      <section id="mao-obra">
+        <div class="sec-head">
+          <h2>Mão de Obra — Horas por Centro de Custo</h2>
+          <div class="note">Horas calculadas a partir do apontamento real (ACOMP PROD). Preencha o R$/h de cada CC (vale para todas as OPs).</div>
+        </div>
+        <div class="panel">
+          <table>
+            <thead><tr><th>Centro de Custo</th><th class="num">Horas</th><th class="num">R$ / hora</th><th class="num">Custo</th></tr></thead>
+            <tbody id="hoursBody"></tbody>
+            <tfoot><tr><td>Total</td><td class="num" id="hoursTotalH"></td><td></td><td class="num" id="hoursTotalCost"></td></tr></tfoot>
+          </table>
+        </div>
+      </section>
+
+      <section id="materiais">
+        <div class="sec-head">
+          <h2>Detalhamento de Matéria-Prima</h2>
+          <div class="note">Base: aba "ITENS OP CUSTO" do SIGER. Custo efetivo quando disponível, senão custo previsto.</div>
+        </div>
+        <div class="material-layout">
+          <div class="material-ranking">
+            <div class="material-ranking-title">
+              <h3>Ranking por posição</h3>
+              <span>maior custo</span>
+            </div>
+            <input class="material-search" id="materialSearch" type="search" placeholder="Buscar código ou descrição">
+            <div class="material-list" id="materialSubtabs"></div>
+          </div>
+          <div class="material-detail-panel" id="materialGroupContent"></div>
+        </div>
+      </section>
+
+      <section id="terceiros">
+        <div class="sec-head">
+          <h2>Terceiros — Serviços Externos</h2>
+          <div class="note">Base: aba "RET SERVC EXT" do SIGER. Custo já rateado pela quantidade efetivamente usada nesta OP; quando o componente não teve remessa própria, o custo foi inferido do histórico de outra OP (ver coluna Origem).</div>
+        </div>
+        <div class="single-panel">
+          <div class="panel">
+            <div class="scroll-box" style="max-height:420px;">
+              <table>
+                <thead><tr><th>Item</th><th>Processo</th><th>Origem</th><th class="num">Custo</th></tr></thead>
+                <tbody id="tercBody"></tbody>
+              </table>
+            </div>
+            <table style="margin-top:6px;"><tfoot><tr><td colspan="3">Total Terceiros</td><td class="num" id="tercTotal"></td></tr></tfoot></table>
+          </div>
+        </div>
+        <details class="terc-raw-toggle">
+          <summary>Ver detalhamento bruto por remessa (auditoria)</summary>
+          <div class="panel" style="margin-top:10px;">
+            <div class="note" style="margin-bottom:10px;">Valor bruto de cada remessa, antes do rateio — pode ser maior que o custo atribuído a esta OP quando a remessa cobre mais peças do que esta OP usou.</div>
+            <div class="scroll-box" style="max-height:300px;">
+              <table>
+                <thead><tr><th>Item</th><th>Processo</th><th>Fornecedor</th><th class="num">Custo bruto remessa</th></tr></thead>
+                <tbody id="tercRawBody"></tbody>
+              </table>
+            </div>
+            <table style="margin-top:6px;"><tfoot><tr><td colspan="3">Total bruto das remessas</td><td class="num" id="tercRawTotal"></td></tr></tfoot></table>
+          </div>
+        </details>
+      </section>
+
+      <section id="excedente">
+        <div class="sec-head">
+          <h2>Excedente de Consumo</h2>
+          <div class="note">Compara o consumo GLOBAL de cada componente nesta OP (soma de todas as posicões) com a quantidade total prevista no BOM padrão carregado. A posição da estrutura onde o componente foi usado é irrelevante — só importa o total. Se a qtd. efetiva for nula, zerada ou menor que a prevista, considera-se a própria prevista (déficit nunca conta, só o que passou do previsto).</div>
+        </div>
+        <div id="excedenteEmpty" class="subtle" style="padding:14px;" hidden></div>
+        <div class="panel" id="excedentePanelWrap" hidden>
+          <div class="scroll-box" style="max-height:460px;">
+            <table>
+              <thead><tr>
+                <th>Código</th><th>Descrição</th><th class="num">Qtd. prevista</th><th class="num">Qtd. efetiva</th>
+                <th class="num">Qtd. excedente</th><th class="num">Custo unit. material</th><th class="num">Custo unit. terceiro</th>
+                <th class="num">Valor adic. material</th><th class="num">Valor adic. terceiro</th><th class="num">Valor adic. total</th><th>Confiança</th>
+              </tr></thead>
+              <tbody id="excedenteBody"></tbody>
+            </table>
+          </div>
+          <table style="margin-top:6px;"><tfoot>
+            <tr><td colspan="9">Total (todos os itens, qualquer confiança)</td><td class="num" id="excedenteTotal"></td><td></td></tr>
+            <tr><td colspan="9">Total (apenas confiança "alta")</td><td class="num" id="excedenteTotalAlta"></td><td></td></tr>
+          </tfoot></table>
+          <div class="subtle" style="margin-top:10px;">
+            <b>Confiança:</b>
+            <span class="pill ok">alta</span> peça discreta (PC), sem repetição idêntica em outra OP — forte indício de retrabalho/perda/quebra real.&nbsp;
+            <span class="pill warn">revisar</span> medida contínua (mm/m²/kg) — conferir manualmente, corte/medição pode gerar desvio sem ser perda real.&nbsp;
+            <span class="pill bad">suspeita</span> a mesma quantidade efetiva se repete idêntica em outras OPs da mesma família — indício de BOM desatualizado, não excedente real.
+          </div>
+        </div>
+      </section>
+
+      <footer>
+        <span>Tecnodrill Ind. de Máquinas · PCP</span>
+        <span id="footerFile"></span>
+      </footer>
+    </div>
+  </main>
+</div>
+<div class="cc-tooltip" id="ccTooltip"></div>
+
+<script>
+/* ================= HELPERS DE PARSING (mesmo padrao do Painel PCP) ================= */
+function normCol(s){ return String(s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9]/g,""); }
+function buildIdx(headers){ var m={}; headers.forEach(function(h,i){ if(h!=null && String(h).trim()!=="") m[normCol(h)]=i; }); return m; }
+function findI(m){ for(var i=1;i<arguments.length;i++){ var n=normCol(arguments[i]); if(m[n]!==undefined) return m[n]; } return -1; }
+function normNum(v){
+  if(v===null||v===undefined||v==="") return 0;
+  if(typeof v==="number") return isNaN(v)?0:v;
+  var s=String(v).trim().replace(/[^\d.,\-]/g,"");
+  if(s===""||s==="-") return 0;
+  var n;
+  if(s.indexOf(",")>=0){ n=parseFloat(s.replace(/\./g,"").replace(",",".")); } else { n=parseFloat(s); }
+  return isNaN(n)?0:n;
+}
+function gs(r,i){ return i>=0 ? String(r[i]==null?"":r[i]).trim() : ""; }
+function fmt(v){ return "R$ " + (v||0).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+function htmlEscape(v){ return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function parseHora(v){
+  if(v===null || v===undefined || v==="") return null;
+  if(typeof v === "number"){
+    /* SheetJS com raw:true devolve hora como fracao do dia (ex: 10:31:00 = 0.4381944...) */
+    var frac = v - Math.floor(v);
+    return frac*24;
+  }
+  var s = String(v).trim();
+  var m = s.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+  if(!m) return null;
+  return parseInt(m[1],10) + parseInt(m[2],10)/60 + (m[3]?parseInt(m[3],10)/3600:0);
+}
+
+function sheetRows(wb, name){
+  var ws = wb.Sheets[name];
+  if(!ws) return [];
+  return XLSX.utils.sheet_to_json(ws, {header:1, raw:true, defval:""});
+}
+
+/* ================= PARSERS ================= */
+function parseItens(rows){
+  if(!rows.length) return [];
+  var cm = buildIdx(rows[0]);
+  var iOp=findI(cm,"op"), iSeq=findI(cm,"seqop","seq.op"), iPos=findI(cm,"descrposop","descr.pos.op"),
+      iPCode=findI(cm,"produto"), iPRef=findI(cm,"refproduto","ref produto"), iPDesc=findI(cm,"descprod","desc.prod"),
+      iPCusto=findI(cm,"custoaquisprod","custo aquis prod"), iQtdProd=findI(cm,"qtdproduzir"),
+      iPUn=iPCusto>0?iPCusto-1:-1, /* coluna "UN" do produto pai: aparece duas vezes no cabecalho, a do pai fica logo antes de "Custo aquis prod" */
+      iICode=findI(cm,"codorditem","codproditem","cod.prod.item"), iIDesc=findI(cm,"descitem","desc.item"),
+      iIRef=findI(cm,"refitem","ref item"), iICusto=findI(cm,"custoaquisitem","custo aquis item"),
+      iIUn=iICusto>=2?iICusto-2:-1, /* coluna "UN" do item: aparece duas vezes no cabecalho; a do item fica 2 antes de "Custo aquis item" (UN, Preco reposicao, Custo aquis item) */
+      iQtdPrev=findI(cm,"consprevistoitemop","cons.previsto item op"), iCustoPrev=findI(cm,"custoprevistoitemtotal","custo previsto item total"),
+      iQtdEf=findI(cm,"qtdefetiva","qtd.efetiva"), iCustoEf=findI(cm,"custoefetivototal","custo efetivo total"),
+      iCc=findI(cm,"codcc","cod cc","centcustoitemop","cent.custo item op"), iCcDesc=findI(cm,"desccc","desc cc","ccitem","cc item"),
+      iMov=findI(cm,"movimentaestoque","movimenta estoque");
+  var out=[];
+  for(var r=1;r<rows.length;r++){
+    var row = rows[r];
+    var op = gs(row,iOp);
+    if(!op) continue;
+    out.push({
+      op:op, seqOp:gs(row,iSeq), posDesc:gs(row,iPos),
+      parentCode:gs(row,iPCode), parentRef:gs(row,iPRef), parentDesc:gs(row,iPDesc), parentUn:gs(row,iPUn),
+      parentCusto:normNum(row[iPCusto]), qtdProduzir:normNum(row[iQtdProd]),
+      itemCode:gs(row,iICode), itemDesc:gs(row,iIDesc), itemRef:gs(row,iIRef), itemCusto:normNum(row[iICusto]), itemUn:gs(row,iIUn),
+      qtdPrevista:normNum(row[iQtdPrev]), custoPrevisto:normNum(row[iCustoPrev]),
+      qtdEfetiva:normNum(row[iQtdEf]), custoEfetivo:normNum(row[iCustoEf]),
+      cc:gs(row,iCc), ccDesc:gs(row,iCcDesc), movimenta:gs(row,iMov)
+    });
+  }
+  return out;
+}
+function parseDateSort(v){
+  if(v===null || v===undefined || v==="") return 0;
+  if(typeof v==="number") return v; /* serial de data do Excel, ja ordenavel */
+  var s = String(v).trim();
+  var m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+  if(m){ var dd=+m[1], mm=+m[2], yy=+m[3]; if(yy<100) yy+=2000; return yy*10000+mm*100+dd; }
+  var m2 = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if(m2) return (+m2[1])*10000+(+m2[2])*100+(+m2[3]);
+  return 0;
+}
+function parseAcomp(rows){
+  if(!rows.length) return [];
+  var cm = buildIdx(rows[0]);
+  var iData=findI(cm,"dtapont","dt.apont"), iOper=findI(cm,"operador"), iDescOper=findI(cm,"descoper","desc oper"),
+      iCc=findI(cm,"ccusto","c.custo"), iCcDesc=findI(cm,"desccc","desc cc"), iOp=findI(cm,"ordpro","ord.pro"),
+      iSeq=findI(cm,"seqop","seq.op"), iRef=findI(cm,"referencia"), iDesc=findI(cm,"desccompleta","desc.completa"),
+      iQtd=findI(cm,"qtdproduz","qtd.produz"), iIni=findI(cm,"hriniprod","hr.ini.prod"), iFim=findI(cm,"hrfinprod","hr.fin.prod");
+  var out=[];
+  for(var r=1;r<rows.length;r++){
+    var row = rows[r];
+    var op = gs(row,iOp);
+    if(!op) continue;
+    var hIni = parseHora(row[iIni]), hFim = parseHora(row[iFim]);
+    var horas = 0;
+    if(hIni!=null && hFim!=null){ horas = hFim - hIni; if(horas<0) horas = 0; }
+    out.push({
+      data:gs(row,iData), dataSort:parseDateSort(row[iData]), operador:gs(row,iOper), descOper:gs(row,iDescOper),
+      cc:gs(row,iCc), ccDesc:gs(row,iCcDesc), op:op, seqOp:gs(row,iSeq),
+      referencia:gs(row,iRef), desc:gs(row,iDesc), qtdProduz:normNum(row[iQtd]), horas:horas
+    });
+  }
+  return out;
+}
+function parseTerc(rows){
+  if(!rows.length) return [];
+  var cm = buildIdx(rows[0]);
+  var iDtRet=findI(cm,"dtret","dt.ret"), iRemessa=findI(cm,"remessa"), iDtRem=findI(cm,"dtrem","dt.rem"),
+      iCc=findI(cm,"ccusto","c.custo"), iCcDesc=findI(cm,"desccc","desc cc"), iFornCod=findI(cm,"fornecedor"),
+      iFornNome=findI(cm,"razaosocial","razao social"), iProdPronto=findI(cm,"prodpronto","prod.pronto"),
+      iRef=findI(cm,"referencia"), iDesc=findI(cm,"desccompleta","desc.completa"), iQtdRem=findI(cm,"qtdremetida","qtd.remetida"),
+      iNf=findI(cm,"nronfretorno","nro.nf retorno"), iOp=findI(cm,"nroop","nro.op"), iSeq=findI(cm,"seqop","seq.op"),
+      iValor=findI(cm,"vlrmaoobra","vlr.mao obra"), iSit=findI(cm,"descrsituacao","descr.situacao"), iQtdTot=findI(cm,"qtdtotretornar","qtd.tot.retornar");
+  var out=[];
+  for(var r=1;r<rows.length;r++){
+    var row = rows[r];
+    var op = gs(row,iOp);
+    if(!op) continue;
+    out.push({
+      dtRet:gs(row,iDtRet), remessa:gs(row,iRemessa), dtRem:gs(row,iDtRem),
+      dataSort: parseDateSort(row[iDtRet]) || parseDateSort(row[iDtRem]),
+      cc:gs(row,iCc), ccDesc:gs(row,iCcDesc), fornecedorCod:gs(row,iFornCod), fornecedorNome:gs(row,iFornNome),
+      prodPronto:gs(row,iProdPronto), referencia:gs(row,iRef), desc:gs(row,iDesc), qtdRemetida:normNum(row[iQtdRem]),
+      nfRetorno:gs(row,iNf), op:op, seqOp:gs(row,iSeq), valor:normNum(row[iValor]), situacao:gs(row,iSit),
+      qtdTotRetornar:normNum(row[iQtdTot])
+    });
+  }
+  return out;
+}
+
+/* ================= ESTADO ================= */
+var ITENS=[], ACOMP=[], TERC=[], OPS=[];
+var opA=null, opB=null, currentView='A';
+var RATE_STORAGE_KEY = 'tecnodrill_custo_rates_v1';
+var rates = loadRates();
+var acompByRef = {};
+var BOM_PADRAO = null; /* {rootRef, rootDesc, porRef:{ref:{codigo,desc,qtdPadrao,un}}} - opcional, carregado a parte */
+
+/* ================= BOM PADRAO (relatorio "Listagem de Formulacoes" do SIGER) =================
+   Arquivo separado (nao faz parte do export de custos). Formato de relatorio impresso:
+   linha raiz = [codigo(numero), cmb, rev, referencia, descricao, ...]
+   linhas de dado (a partir da proxima) = ['', codigo, referencia, descricao, seq, grd, qtd, un, ...]
+   Quantidades ja vem "explodidas" (resolvidas para 1 unidade do produto final), entao basta
+   somar por referencia (um componente pode aparecer em mais de uma posicao da arvore). */
+function parseBomPadrao(rows){
+  var dataStart=-1, rootRef=null, rootDesc=null, rootCode=null;
+  for(var i=0;i<20 && i<rows.length;i++){
+    var row = rows[i];
+    if(row && typeof row[0]==='number' && row[3] && row[4]){
+      rootCode=row[0]; rootRef=String(row[3]); rootDesc=row[4]; dataStart=i+1; break;
+    }
+  }
+  if(dataStart<0) return null;
+  var porRef = {};
+  for(var r=dataStart; r<rows.length; r++){
+    var row = rows[r];
+    if(!row || row.length<7) continue;
+    var codigo=row[1], ref=row[2], desc=row[3], qtd=row[6], un=row[7];
+    if(codigo===''||ref===undefined||ref==='') continue;
+    var key = String(ref);
+    if(!porRef[key]) porRef[key] = {codigo:codigo, desc:desc, qtdPadrao:0, un:un};
+    porRef[key].qtdPadrao += Number(qtd)||0;
+  }
+  return {rootRef:rootRef, rootDesc:rootDesc, rootCode:rootCode, porRef:porRef};
+}
+function handleBomPadraoFile(file){
+  file.arrayBuffer().then(function(buf){
+    try{
+      var wb = XLSX.read(new Uint8Array(buf), {type:'array', cellDates:false});
+      var rows = sheetRows(wb, wb.SheetNames[0]);
+      var bom = parseBomPadrao(rows);
+      if(!bom) throw new Error('Nao foi possivel reconhecer o formato do arquivo (esperado: relatorio "Listagem de Formulacoes" do SIGER).');
+      BOM_PADRAO = bom;
+      _desatualizadoCache = null;
+      var st = $('#bomPadraoStatus');
+      st.style.display='inline-block';
+      st.textContent = 'BOM padrao: '+bom.rootDesc+' ('+Object.keys(bom.porRef).length+' componentes)';
+      renderAll();
+    }catch(e){
+      alert('Erro ao carregar BOM padrao: '+e.message);
+    }
+  });
+}
+
+/* ================= TEMPOS POR CC (hover em CJ/componente) =================
+   CJ (tem posicao propria/Seq.OP nesta OP): tempo = apontamento real desta OP.
+   PC (sem posicao propria): tempo = media das ultimas 2 OPs (por data de apontamento)
+   em que essa referencia foi fabricada, cruzando Ref.Item/Ref.Produto (ITENS OP CUSTO)
+   com Referencia (ACOMP PROD). */
+function buildAcompIndex(){
+  acompByRef = {};
+  ACOMP.forEach(function(r){
+    if(!r.referencia) return;
+    (acompByRef[r.referencia] = acompByRef[r.referencia] || []).push(r);
+  });
+}
+function ccTimeInfo(ref, op, isSub){
+  if(!ref) return {mode:'none'};
+  var rows = acompByRef[ref] || [];
+  if(isSub){
+    var mine = rows.filter(function(r){ return r.op===op; });
+    if(!mine.length) return {mode:'none-exact', op:op};
+    var byCc = {};
+    mine.forEach(function(r){ var k=r.ccDesc||r.cc||'Sem CC'; byCc[k]=(byCc[k]||0)+r.horas; });
+    return {mode:'exact', op:op, ccs:byCc};
+  }
+  var opDate = {};
+  rows.forEach(function(r){ if(opDate[r.op]===undefined || r.dataSort>opDate[r.op]) opDate[r.op]=r.dataSort; });
+  var opList = Object.keys(opDate).sort(function(a,b){ return opDate[b]-opDate[a]; });
+  if(!opList.length) return {mode:'none'};
+  var lastTwo = opList.slice(0,2);
+  /* Cada OP pode ter produzido uma quantidade diferente desse item no mesmo apontamento
+     (ex: OP com 7 pcs vs OP com 5 pcs). O tempo bruto (horas) nao e comparavel entre OPs
+     com lotes de tamanhos diferentes, entao primeiro normaliza para tempo/peca em CADA OP
+     (horas do CC na OP / qtd produzida do CC na OP), so depois tira a media entre as OPs. */
+  var perOpUnit = {};
+  lastTwo.forEach(function(o){
+    var byCcHoras = {}, byCcQtd = {};
+    rows.filter(function(r){ return r.op===o; }).forEach(function(r){
+      var k = r.ccDesc||r.cc||'Sem CC';
+      byCcHoras[k] = (byCcHoras[k]||0) + r.horas;
+      byCcQtd[k] = (byCcQtd[k]||0) + r.qtdProduz;
+    });
+    Object.keys(byCcHoras).forEach(function(cc){
+      var qtd = byCcQtd[cc];
+      var unit = qtd>0 ? byCcHoras[cc]/qtd : byCcHoras[cc];
+      (perOpUnit[cc] = perOpUnit[cc] || []).push(unit);
+    });
+  });
+  var avgCcs = {};
+  Object.keys(perOpUnit).forEach(function(cc){
+    var soma = perOpUnit[cc].reduce(function(s,v){ return s+v; },0);
+    avgCcs[cc] = soma/lastTwo.length;
+  });
+  return {mode:'avg', ops:lastTwo, ccs:avgCcs};
+}
+function ccTooltipHtml(label, isSub, info){
+  var title = (isSub?'CJ · ':'Componente · ')+htmlEscape(label||'');
+  var body;
+  if(info.mode==='exact'){
+    body = '<div class="tt-note">Apontamento real desta OP '+htmlEscape(info.op)+'.</div>' +
+      Object.entries(info.ccs).sort(function(a,b){ return b[1]-a[1]; }).map(function(e){
+        return '<div class="tt-row"><span>'+htmlEscape(e[0])+'</span><b>'+e[1].toFixed(2)+' h</b></div>';
+      }).join('');
+  } else if(info.mode==='avg'){
+    body = '<div class="tt-note">Tempo/peca medio das ultimas '+info.ops.length+' OP(s) em que este item foi fabricado (normalizado pela qtd. produzida em cada OP): OP '+info.ops.map(htmlEscape).join(', OP ')+'.</div>' +
+      Object.entries(info.ccs).sort(function(a,b){ return b[1]-a[1]; }).map(function(e){
+        return '<div class="tt-row"><span>'+htmlEscape(e[0])+'</span><b>'+e[1].toFixed(3)+' h/pc</b></div>';
+      }).join('');
+  } else if(info.mode==='none-exact'){
+    body = '<div class="tt-note">Sem apontamento (ACOMP PROD) para este item nesta OP.</div>';
+  } else {
+    body = '<div class="tt-note">Sem historico de apontamento para este item.</div>';
+  }
+  return '<div class="tt-title">'+title+'</div>'+body;
+}
+function showCcTooltip(el, ref, op, isSub, label){
+  var info = ccTimeInfo(ref, op, isSub);
+  var tt = $('#ccTooltip');
+  tt.innerHTML = ccTooltipHtml(label, isSub, info);
+  tt.classList.add('show');
+  var r = el.getBoundingClientRect();
+  var ttW = tt.offsetWidth || 280;
+  tt.style.left = Math.max(8, Math.min(r.left, window.innerWidth - ttW - 8)) + 'px';
+  tt.style.top = (r.bottom + 6) + 'px';
+}
+function hideCcTooltip(){ $('#ccTooltip').classList.remove('show'); }
+function bindCcHover(el, ref, op, isSub, label){
+  el.addEventListener('mouseenter', function(){ showCcTooltip(el, ref, op, isSub, label); });
+  el.addEventListener('mouseleave', hideCcTooltip);
+}
+
+function loadRates(){ try{ return JSON.parse(localStorage.getItem(RATE_STORAGE_KEY)||'{}'); }catch(e){ return {}; } }
+function saveRates(){ localStorage.setItem(RATE_STORAGE_KEY, JSON.stringify(rates)); }
+
+var $ = function(s){ return document.querySelector(s); };
+
+/* ================= CARREGAMENTO DO ARQUIVO ================= */
+function handleFile(file){
+  $('#uploadErr').hidden = true;
+  $('#uploadLoading').hidden = false;
+  file.arrayBuffer().then(function(buf){
+    try{
+      var wb = XLSX.read(new Uint8Array(buf), {type:'array', cellDates:false});
+      var itensRows = sheetRows(wb, 'ITENS OP CUSTO');
+      var acompRows = sheetRows(wb, 'ACOMP PROD');
+      var tercRows = sheetRows(wb, 'RET SERVC EXT');
+      if(!itensRows.length) throw new Error('Aba "ITENS OP CUSTO" nao encontrada ou vazia.');
+      ITENS = parseItens(itensRows);
+      ACOMP = parseAcomp(acompRows);
+      TERC = parseTerc(tercRows);
+      buildAcompIndex();
+      buildItensLeafIndex();
+      buildTercHistorico();
+      buildOpsList();
+      $('#uploadLoading').hidden = true;
+      $('#uploadWrap').hidden = true;
+      $('#appWrap').hidden = false;
+      $('#topbarActions').hidden = false;
+      $('#footerFile').textContent = file.name;
+      $('#scopeLabel').textContent = OPS.length + ' OPs carregadas';
+      if(OPS.length){ selecionarOpA(OPS[0].op); }
+    }catch(e){
+      $('#uploadLoading').hidden = true;
+      $('#uploadErr').hidden = false;
+      $('#uploadErr').textContent = 'Erro ao processar planilha: ' + e.message;
+    }
+  }).catch(function(e){
+    $('#uploadLoading').hidden = true;
+    $('#uploadErr').hidden = false;
+    $('#uploadErr').textContent = 'Erro ao ler arquivo: ' + e.message;
+  });
+}
+function buildOpsList(){
+  _desatualizadoCache = null;
+  var m = {};
+  ITENS.forEach(function(r){
+    if(!m[r.op]) m[r.op] = {op:r.op, desc:r.parentDesc, status:r.posDesc};
+  });
+  OPS = Object.values(m).map(function(o){ o.material = materialTotal(o.op); return o; })
+    .sort(function(a,b){ return b.material - a.material; });
+}
+
+/* ================= AGREGACOES ================= */
+/* Codigos de produto que tem posicao propria (Seq.OP) nesta OP: sao sub-conjuntos ja
+   "explodidos" em outra posicao. O custo deles deve ser contado uma unica vez, na
+   propria posicao onde aparecem como insumo-folha (parafusos, chapas etc.) - nunca
+   de novo no nivel onde sao consumidos como sub-conjunto pronto, senao duplica o total. */
+function subassemblyCodes(op){
+  var set = {};
+  ITENS.forEach(function(r){ if(r.op===op && r.parentCode) set[r.parentCode]=true; });
+  return set;
+}
+function materialTotal(op){
+  var subs = subassemblyCodes(op);
+  return ITENS.filter(function(r){ return r.op===op && r.itemCode && !subs[r.itemCode]; })
+    .reduce(function(s,r){ return s + (r.custoEfetivo || r.custoPrevisto || 0); },0);
+}
+function materialTree(op){
+  var subs = subassemblyCodes(op);
+  var groups = {};
+  ITENS.filter(function(r){ return r.op===op; }).forEach(function(r){
+    var key = r.seqOp + '|' + r.parentCode;
+    if(!groups[key]) groups[key] = {op:op, seqOp:r.seqOp, code:r.parentCode, ref:r.parentRef, desc:r.parentDesc, un:r.parentUn, total:0, leaves:[]};
+    var custo = r.custoEfetivo || r.custoPrevisto || 0;
+    if(!(r.itemCode && subs[r.itemCode])) groups[key].total += custo;
+    if(r.itemCode){
+      groups[key].leaves.push({code:r.itemCode, ref:r.itemRef, desc:r.itemDesc, qtd:(r.qtdEfetiva||r.qtdPrevista), un:r.itemUn, unitCost:r.itemCusto, custo:custo, cc:r.ccDesc, isSub:!!subs[r.itemCode]});
+    }
+  });
+  return Object.values(groups).sort(function(a,b){ return b.total-a.total; });
+}
+/* ================= ARVORE RECURSIVA DE MATERIAIS =================
+   Cada posicao (Seq.OP/parentCode) vira um "no". Um insumo-folha que e' ele mesmo
+   um sub-conjunto (tem posicao propria nesta OP) e' substituido pela arvore da sua
+   propria posicao, recursivamente - sem ambiguidade, pois usa o mesmo vinculo
+   Seq.OP/parentCode que o SIGER ja registra (nao depende do BOM padrao externo). */
+function positionsByCode(op){
+  var byCode = {};
+  materialTree(op).forEach(function(g){ if(!byCode[g.code]) byCode[g.code] = g; });
+  return byCode;
+}
+/* Ranking = os componentes DIRETOS da posicao raiz (Seq.OP=0) desta OP - sub-conjunto
+   ou insumo, cada um vira 1 item do ranking (igual ao relatorio de referencia da
+   diretoria: "Cj Eletrico", "Estrutura...", "Kit Pneumatico" etc. cada um com seu %
+   do total da maquina). Selecionar um deles mostra a arvore recursiva completa dele.
+   Posicoes que sobrarem sem dono (ex: CJ fabricado nesta OP em lote para outra OP,
+   nao consumido pela propria raiz) tambem entram na lista, como itens avulsos. */
+function topLevelPositions(op){
+  var byCode = positionsByCode(op);
+  var rootRow = ITENS.find(function(r){ return r.op===op && r.seqOp==='0'; });
+  var rootGroup = rootRow ? byCode[rootRow.parentCode] : null;
+  var visited = {};
+  var out = [];
+  if(rootGroup){
+    visited[rootGroup.code] = true;
+    buildMaterialNode(op, rootGroup, byCode, visited).children.forEach(function(child){ out.push(child); });
+  }
+  Object.values(byCode).forEach(function(g){
+    if(visited[g.code]) return;
+    visited[g.code] = true;
+    out.push(buildMaterialNode(op, g, byCode, visited));
+  });
+  return out;
+}
+function buildMaterialNode(op, group, byCode, visited){
+  var node = {op:op, code:group.code, ref:group.ref, desc:group.desc, un:group.un, seqOp:group.seqOp, ownTotal:group.total, leaf:false, children:[]};
+  group.leaves.forEach(function(l){
+    if(l.isSub && byCode[l.code] && !visited[l.code]){
+      visited[l.code] = true;
+      node.children.push(buildMaterialNode(op, byCode[l.code], byCode, visited));
+    } else {
+      node.children.push({op:op, code:l.code, ref:l.ref, desc:l.desc, qtd:l.qtd, un:l.un, unitCost:l.unitCost, custo:l.custo, cc:l.cc, leaf:true, isSub:!!(l.isSub && byCode[l.code])});
+    }
+  });
+  return node;
+}
+function nodeFullTotal(node){
+  if(node.leaf) return node.custo||0;
+  var t = node.ownTotal||0;
+  node.children.forEach(function(c){ if(!c.leaf) t += nodeFullTotal(c); });
+  return t;
+}
+function nodeLeafCount(node){
+  if(node.leaf) return 1;
+  return node.children.reduce(function(s,c){ return s+nodeLeafCount(c); },0);
+}
+function nodeMatches(node, term){
+  if(String(node.code).toLowerCase().includes(term) || String(node.desc).toLowerCase().includes(term)) return true;
+  return node.children ? node.children.some(function(c){ return nodeMatches(c, term); }) : false;
+}
+function rootProductRef(op){
+  var r = ITENS.find(function(x){ return x.op===op && x.seqOp==='0'; });
+  return r ? r.parentRef : null;
+}
+function bomAplicavel(op){
+  return !!(BOM_PADRAO && rootProductRef(op)===BOM_PADRAO.rootRef);
+}
+function seqOpsParaRef(op, ref){
+  var set = {};
+  ITENS.forEach(function(r){ if(r.op===op && r.itemRef===ref) set[r.seqOp]=true; });
+  return Object.keys(set);
+}
+function qtyTotalRefNaOp(op, ref){
+  return ITENS.filter(function(r){ return r.op===op && r.itemRef===ref; })
+    .reduce(function(s,r){ return s+(r.qtdEfetiva||r.qtdPrevista||0); },0);
+}
+function horasPorCc(op){
+  var m = {};
+  ACOMP.filter(function(r){ return r.op===op; }).forEach(function(r){
+    var key = r.ccDesc || r.cc || 'Sem CC';
+    if(!m[key]) m[key] = 0;
+    m[key] += r.horas;
+  });
+  return m;
+}
+function moTotal(op){
+  var h = horasPorCc(op);
+  return Object.entries(h).reduce(function(s,e){ return s + e[1]*(rates[e[0]]||0); },0);
+}
+function tercRowsForOp(op){
+  return TERC.filter(function(r){ return r.op===op; });
+}
+/* ================= RATEIO DE TERCEIROS =================
+   O Vlr.mao obra de "RET SERVC EXT" e o custo da remessa inteira (Qtd.remetida),
+   que pode ser maior do que o que esta OP realmente consumiu (Qtd.efetiva/Cons.previsto
+   em "ITENS OP CUSTO"). Ex.: remessa de 8 pecas a R$1.475,52, OP so usou 2 -> custo
+   unitario R$184,44, custo atribuido a OP = R$368,88 (nao os R$1.475,52 inteiros).
+   Quando a referencia nao aparece como insumo consumido em nenhuma posicao da OP,
+   nao ha como ratear com seguranca: mantem o valor bruto da remessa. */
+var itensLeafQty = {};
+function buildItensLeafIndex(){
+  itensLeafQty = {};
+  ITENS.forEach(function(r){
+    if(!r.itemRef) return;
+    var key = r.op+'|'+r.itemRef;
+    var q = r.qtdEfetiva || r.qtdPrevista || 0;
+    itensLeafQty[key] = (itensLeafQty[key]||0) + q;
+  });
+}
+function tercRateio(op){
+  var rows = tercRowsForOp(op);
+  var byRef = {};
+  rows.forEach(function(r){
+    var key = r.referencia || ('__sem_ref__'+r.desc);
+    if(!byRef[key]) byRef[key] = {valorBruto:0, qtdRem:0, rows:[]};
+    byRef[key].valorBruto += r.valor;
+    byRef[key].qtdRem += r.qtdRemetida;
+    byRef[key].rows.push(r);
+  });
+  var out = [];
+  Object.keys(byRef).forEach(function(key){
+    var g = byRef[key];
+    var ref = g.rows[0].referencia;
+    var qtdUsada = ref ? itensLeafQty[op+'|'+ref] : undefined;
+    var factor = 1;
+    if(qtdUsada!==undefined && g.qtdRem>0) factor = qtdUsada/g.qtdRem;
+    g.rows.forEach(function(r){ out.push({row:r, valorAtribuido:r.valor*factor, rateado:factor!==1}); });
+  });
+  return out;
+}
+/* ================= INFERENCIA DE TERCEIROS (peca fabricada para estoque) =================
+   Muitas pecas (ex: 95700004) sao fabricadas em lote para estoque e usadas em varias OPs,
+   mas a remessa de terceiros (zincagem, usinagem, oxidacao etc.) so fica vinculada a UMA
+   OP no SIGER - normalmente a que "puxou" o lote do estoque. As demais OPs que consomem a
+   mesma peca/processo ficam sem custo de terceiros registrado, subestimando o custo delas.
+   Regra: se esta OP usa uma referencia que tem historico de terceiros em OUTRAS OPs mas nao
+   tem remessa propria para aquele processo, infere o custo usando o preco unitario historico
+   (preferindo o mais recente - reflete reajuste real de fornecedor) x qtd usada NESTA OP.
+   Nunca duplica: so infere processo que esta OP ainda nao tem registrado de verdade. */
+var tercHistorico = {};
+function buildTercHistorico(){
+  tercHistorico = {};
+  TERC.forEach(function(r){
+    if(!r.referencia || !(r.qtdRemetida>0)) return;
+    var proc = r.ccDesc || r.cc || 'Servico';
+    if(!tercHistorico[r.referencia]) tercHistorico[r.referencia] = {};
+    if(!tercHistorico[r.referencia][proc]) tercHistorico[r.referencia][proc] = [];
+    tercHistorico[r.referencia][proc].push({
+      op:r.op, unitCost:r.valor/r.qtdRemetida, dataSort:r.dataSort||0,
+      fornecedor:r.fornecedorNome, valor:r.valor, qtdRem:r.qtdRemetida
+    });
+  });
+}
+/* Um componente pode ter mais de um processo distinto no historico (ex: mudou de
+   fornecedor/metodo - zincagem virou padrao, pintura foi excecao pontual). Assumindo
+   "processo identico" (regra do usuario), soh existe UM processo real por componente:
+   o dominante (mais recorrente no historico). Infere so esse - nunca soma processos
+   alternativos/legados do mesmo componente. */
+function tercProcessoDominante(ref){
+  var procs = tercHistorico[ref];
+  if(!procs) return null;
+  var entries = Object.entries(procs);
+  entries.sort(function(a,b){
+    if(b[1].length!==a[1].length) return b[1].length-a[1].length;
+    var recA = a[1].slice().sort(function(x,y){ return y.dataSort-x.dataSort; })[0];
+    var recB = b[1].slice().sort(function(x,y){ return y.dataSort-x.dataSort; })[0];
+    return recB.dataSort-recA.dataSort;
+  });
+  return {processo:entries[0][0], hist:entries[0][1], totalProcessosDistintos:entries.length};
+}
+function tercInferidos(op){
+  var real = tercRateio(op);
+  var refsComCustoReal = {};
+  real.forEach(function(e){ refsComCustoReal[e.row.referencia] = true; });
+  var refsDaOp = {};
+  ITENS.forEach(function(r){ if(r.op===op && r.itemRef) refsDaOp[r.itemRef] = true; });
+  var out = [];
+  Object.keys(refsDaOp).forEach(function(ref){
+    if(refsComCustoReal[ref]) return; /* componente ja tem custo real de terceiros nesta OP - nunca duplica */
+    var qtdUsada = itensLeafQty[op+'|'+ref];
+    if(!qtdUsada) return;
+    var dom = tercProcessoDominante(ref);
+    if(!dom) return;
+    var hist = dom.hist;
+    var maisRecente = hist.slice().sort(function(a,b){ return b.dataSort-a.dataSort; })[0];
+    var freq = {};
+    hist.forEach(function(h){ var k=h.unitCost.toFixed(2); (freq[k]=freq[k]||[]).push(h); });
+    var moda = Object.values(freq).sort(function(a,b){ return b.length-a.length; })[0];
+    var usarPreco = maisRecente.unitCost;
+    out.push({
+      ref:ref, processo:dom.processo, qtdUsada:qtdUsada, unitCost:usarPreco,
+      valorInferido: usarPreco*qtdUsada,
+      opOrigem: maisRecente.op, ocorrencias: hist.length,
+      processosAlternativosIgnorados: dom.totalProcessosDistintos-1,
+      divergeDoRecorrente: Math.abs(maisRecente.unitCost-moda[0].unitCost)>0.005,
+      precoRecorrente: moda[0].unitCost
+    });
+  });
+  return out;
+}
+function tercTotal(op){
+  var real = tercRateio(op).reduce(function(s,e){ return s + e.valorAtribuido; },0);
+  var inferido = tercInferidos(op).reduce(function(s,e){ return s + e.valorInferido; },0);
+  return real + inferido;
+}
+function allCcNames(){
+  var set = {};
+  ACOMP.forEach(function(r){ set[r.ccDesc||r.cc||'Sem CC']=1; });
+  return Object.keys(set).sort();
+}
+
+/* ================= EXCEDENTE DE CONSUMO (comparacao GLOBAL com o BOM padrao) =================
+   Regra unica, sem excecao por posicao/CJ: soma-se TODAS as ocorrencias da referencia no BOM
+   (Quantidade Prevista) e TODAS as ocorrencias dela nesta OP, em qualquer posicao (Quantidade
+   Efetiva). Se a efetiva for nula/zerada/menor que a prevista, usa-se a propria prevista (nunca
+   conta deficit). Excedente = utilizada - prevista, so quando positivo. A localizacao na
+   estrutura (em qual CJ o componente entrou) e irrelevante para esta regra. */
+function itemInfoNaOp(op, ref){
+  var r = ITENS.find(function(x){ return x.op===op && x.itemRef===ref; });
+  return r ? {codigo:r.itemCode, desc:r.itemDesc, unitCost:r.itemCusto} : null;
+}
+function analisaExcedenteBase(op){
+  if(!bomAplicavel(op)) return [];
+  var refsDaOp = {};
+  ITENS.forEach(function(r){ if(r.op===op && r.itemRef) refsDaOp[r.itemRef]=true; });
+  var realPorRef = {};
+  tercRateio(op).forEach(function(e){
+    var ref = e.row.referencia; if(!ref) return;
+    if(!realPorRef[ref]) realPorRef[ref] = {valor:0, procs:{}};
+    realPorRef[ref].valor += e.valorAtribuido;
+    var proc = e.row.ccDesc || e.row.cc || 'Servico';
+    realPorRef[ref].procs[proc] = (realPorRef[ref].procs[proc]||0) + e.valorAtribuido;
+  });
+  var linhas = [];
+  Object.keys(refsDaOp).forEach(function(ref){
+    var bom = BOM_PADRAO.porRef[ref];
+    if(!bom) return; /* componente fora do escopo do BOM padrao carregado */
+    var qtdPrevista = bom.qtdPadrao;
+    var qtdEfetiva = itensLeafQty[op+'|'+ref] || 0;
+    var qtdUtilizada = (qtdEfetiva && qtdEfetiva > qtdPrevista) ? qtdEfetiva : qtdPrevista;
+    var qtdExcedente = qtdUtilizada - qtdPrevista;
+    if(qtdExcedente <= 0.001) return;
+
+    var info = itemInfoNaOp(op, ref) || {};
+    var unitCostMat = info.unitCost || 0;
+    var valorAdicionalMat = qtdExcedente * unitCostMat;
+
+    var processo='', unitCostServ=0, origem='';
+    if(realPorRef[ref]){
+      var procs = Object.keys(realPorRef[ref].procs);
+      unitCostServ = qtdEfetiva>0 ? realPorRef[ref].valor/qtdEfetiva : 0;
+      processo = procs.join(' + '); origem = 'OP atual';
+    } else {
+      var dom = tercProcessoDominante(ref);
+      if(dom){
+        var maisRecente = dom.hist.slice().sort(function(a,b){ return b.dataSort-a.dataSort; })[0];
+        unitCostServ = maisRecente.unitCost; processo = dom.processo; origem = 'Inferido da OP '+maisRecente.op;
+      }
+    }
+    var valorAdicionalServ = qtdExcedente * unitCostServ;
+
+    linhas.push({
+      op:op, ref:ref, codigo:(info.codigo || bom.codigo), descricao:(info.desc || bom.desc), un:bom.un,
+      qtdPrevista:qtdPrevista, qtdEfetiva:qtdEfetiva, qtdExcedente:qtdExcedente,
+      unitCostMat:unitCostMat, unitCostServ:unitCostServ, processo:processo, origem:origem,
+      valorAdicionalMat:valorAdicionalMat, valorAdicionalServ:valorAdicionalServ,
+      valorAdicionalTotal:valorAdicionalMat+valorAdicionalServ
+    });
+  });
+  linhas.sort(function(a,b){ return b.valorAdicionalTotal-a.valorAdicionalTotal; });
+  return linhas;
+}
+/* Sinal de "BOM desatualizado": quando a MESMA qtd. efetiva se repete identica em 2+ OPs
+   (dentro de toda a familia de OPs aplicavel a este BOM padrao), o excedente provavelmente
+   nao e retrabalho - e o BOM que ainda nao foi atualizado para refletir o consumo real. */
+var _desatualizadoCache = null;
+function refsBomDesatualizado(){
+  if(_desatualizadoCache) return _desatualizadoCache;
+  var set = {};
+  if(!BOM_PADRAO){ _desatualizadoCache = set; return set; }
+  var opsAplicaveis = OPS.filter(function(o){ return bomAplicavel(o.op); }).map(function(o){ return o.op; });
+  var usadoPorRef = {};
+  opsAplicaveis.forEach(function(op){
+    analisaExcedenteBase(op).forEach(function(l){
+      (usadoPorRef[l.ref] = usadoPorRef[l.ref] || []).push(l.qtdEfetiva);
+    });
+  });
+  Object.keys(usadoPorRef).forEach(function(ref){
+    var valores = usadoPorRef[ref];
+    if(valores.length<2) return;
+    var contagem = {};
+    valores.forEach(function(v){ contagem[v] = (contagem[v]||0)+1; });
+    var max = Math.max.apply(null, Object.values(contagem));
+    if(max>=2) set[ref]=true;
+  });
+  _desatualizadoCache = set;
+  return set;
+}
+function analisaExcedente(op){
+  var desatualizado = refsBomDesatualizado();
+  return analisaExcedenteBase(op).map(function(l){
+    var conf, motivo;
+    if(desatualizado[l.ref]){
+      conf='suspeita';
+      motivo='Mesma quantidade efetiva se repete identica em outra(s) OP(s) da familia - provavel BOM desatualizado, nao necessariamente excedente real.';
+    } else if(l.un && l.un!=='PC'){
+      conf='revisar';
+      motivo='Medida continua ('+l.un+') - conferir manualmente, diferencas de corte/medicao podem inflar o desvio sem ser perda real.';
+    } else {
+      conf='alta';
+      motivo='Peca discreta (PC), sem repeticao identica em outras OPs da familia - indicio forte de retrabalho, perda ou quebra real.';
+    }
+    l.confianca = conf; l.confiancaMotivo = motivo;
+    return l;
+  });
+}
+
+/* ================= SELECAO DE OP ================= */
+function selecionarOpA(op){ opA = op; if(opB===op) opB=null; refreshAfterOpChange(); }
+function selecionarOpB(op){ opB = (op===opA) ? null : op; refreshAfterOpChange(); }
+function refreshAfterOpChange(){
+  $('#opSearchA').value = opA || '';
+  $('#opSearchB').value = opB || '';
+  renderTabs();
+  currentView = 'A';
+  renderAll();
+}
+function renderTabs(){
+  var wrap = $('#viewTabs');
+  if(!opB){ wrap.innerHTML=''; return; }
+  wrap.innerHTML =
+    '<div class="tab' + (currentView==='geral'?' active':'') + '" data-v="geral">Painel Geral<small>OP ' + htmlEscape(opA) + ' + OP ' + htmlEscape(opB) + '</small></div>' +
+    '<div class="tab' + (currentView==='A'?' active':'') + '" data-v="A">OP ' + htmlEscape(opA) + '<small>Individual</small></div>' +
+    '<div class="tab' + (currentView==='B'?' active':'') + '" data-v="B">OP ' + htmlEscape(opB) + '<small>Individual</small></div>';
+  wrap.querySelectorAll('.tab').forEach(function(t){
+    t.addEventListener('click', function(){ currentView = t.dataset.v; renderAll(); renderTabs(); });
+  });
+}
+function opsInView(){
+  if(!opB) return [opA];
+  if(currentView==='geral') return [opA,opB];
+  if(currentView==='A') return [opA];
+  return [opB];
+}
+
+/* ================= RENDER ================= */
+function renderAll(){
+  renderCards();
+  renderExecutiveBrief();
+  renderCostAnalysis();
+  renderHours();
+  renderMaterialSubtabs();
+  renderTerc();
+  renderExcedente();
+  renderCompareSection();
+  $('#viewLabel').textContent = opB ? (currentView==='geral' ? 'Painel Geral' : 'OP '+(currentView==='A'?opA:opB)) : 'OP '+opA;
+}
+function totalsForView(){
+  var ops = opsInView();
+  var mp=0, terc=0, mo=0;
+  ops.forEach(function(op){ mp += materialTotal(op); terc += tercTotal(op); });
+  var horasAgg = {};
+  ops.forEach(function(op){
+    var h = horasPorCc(op);
+    Object.entries(h).forEach(function(e){ horasAgg[e[0]] = (horasAgg[e[0]]||0) + e[1]; });
+  });
+  mo = Object.entries(horasAgg).reduce(function(s,e){ return s + e[1]*(rates[e[0]]||0); },0);
+  return {mp:mp, terc:terc, mo:mo, total:mp+terc+mo, horas:horasAgg};
+}
+function rateStats(){
+  var ccs = allCcNames();
+  var filled = ccs.filter(function(cc){ return (rates[cc]||0)>0; }).length;
+  return {total:ccs.length, filled:filled, missing:ccs.length-filled, pct: ccs.length ? (filled/ccs.length*100) : 0};
+}
+function renderCards(){
+  var t = totalsForView();
+  var moDefined = Object.values(rates).some(function(r){ return r>0; });
+  $('#cardsRow').innerHTML =
+    '<div class="card"><div class="lbl">Matéria-Prima</div><div class="val">'+fmt(t.mp)+'</div></div>' +
+    '<div class="card"><div class="lbl">Terceiros</div><div class="val">'+fmt(t.terc)+'</div></div>' +
+    '<div class="card"><div class="lbl">Mão de Obra '+(moDefined?'':'<span class="pill" style="margin-left:6px;">preencher R$/h</span>')+'</div><div class="val '+(moDefined?'':'pending')+'">'+(moDefined?fmt(t.mo):'defina o R$/h')+'</div></div>' +
+    '<div class="card total"><div class="lbl">Custo Total</div><div class="val '+(moDefined?'':'pending')+'">'+(moDefined?fmt(t.total):'defina o R$/h')+'</div></div>';
+}
+function renderExecutiveBrief(){
+  var stats = rateStats();
+  var t = totalsForView();
+  var topCc = Object.entries(t.horas).sort(function(a,b){ return b[1]-a[1]; })[0];
+  var totalHoras = Object.values(t.horas).reduce(function(s,v){ return s+v; },0);
+  var moShare = t.total>0 ? (t.mo/t.total*100) : 0;
+  $('#summaryRow').innerHTML =
+    '<div class="metric"><div class="k">Total projetado</div><div class="v">'+(stats.filled?fmt(t.total):'Aguardando')+'</div><div class="s">'+(stats.filled?(moShare.toFixed(1)+'% do total em mao de obra'):'Preencha ao menos um R$/h para abrir o custo final.')+'</div></div>' +
+    '<div class="metric"><div class="k">Horas produtivas</div><div class="v">'+totalHoras.toFixed(1)+' h</div><div class="s">'+(topCc?('Maior carga: '+htmlEscape(topCc[0])+' ('+topCc[1].toFixed(1)+' h).'):'Sem apontamento.')+'</div></div>' +
+    '<div class="metric"><div class="k">Status R$/h</div><div class="v">'+stats.filled+'/'+stats.total+'</div><div class="s">'+(stats.missing?(stats.missing+' centro(s) sem taxa definida.'):'Todos os centros preenchidos.')+'</div></div>';
+  $('#rateProgressBar').style.width = stats.pct+'%';
+  $('#rateProgressText').textContent = stats.filled+' de '+stats.total+' preenchidos';
+  $('#rateMissingText').textContent = stats.missing ? (stats.missing+' pendente(s)') : 'completo';
+  $('#rateStatusText').textContent = stats.missing ? 'Complete os centros pendentes para apresentar o custo total fechado.' : 'Todos os R$/h foram informados. Custo final pronto para apresentacao.';
+  $('#rateStatusDot').classList.toggle('ok', stats.missing===0);
+}
+function renderCostAnalysis(){
+  var t = totalsForView();
+  var matShare = t.total ? (t.mp/t.total*100).toFixed(1) : '0.0';
+  var moShare = t.total ? (t.mo/t.total*100).toFixed(1) : '0.0';
+  var ops = opsInView();
+  var trees = [];
+  ops.forEach(function(op){ trees = trees.concat(materialTree(op)); });
+  trees.sort(function(a,b){ return b.total-a.total; });
+  var topGroup = trees[0];
+  var topCc = Object.entries(t.horas).map(function(e){ return {cc:e[0], horas:e[1], custo:e[1]*(rates[e[0]]||0)}; }).sort(function(a,b){ return b.custo-a.custo || b.horas-a.horas; })[0];
+  $('#costAnalysisGrid').innerHTML =
+    '<div class="analysis-item"><strong>Matéria-prima domina o custo</strong><span>'+fmt(t.mp)+' representam '+matShare+'% do total. '+(topGroup?('Posicao mais cara: '+htmlEscape(topGroup.desc||topGroup.code)+' ('+fmt(topGroup.total)+').'):'')+'</span></div>' +
+    '<div class="analysis-item"><strong>Terceiros</strong><span>'+fmt(t.terc)+' pagos a fornecedores externos nas OP(s) selecionada(s).</span></div>' +
+    '<div class="analysis-item"><strong>Mão de obra</strong><span>'+fmt(t.mo)+' ('+moShare+'% do total). '+(topCc?('Maior carga: '+htmlEscape(topCc.cc)+' com '+topCc.horas.toFixed(2)+' h'+(topCc.custo>0?(' e '+fmt(topCc.custo)):' aguardando R$/h')+'.'):'')+'</span></div>';
+}
+function renderHours(){
+  var t = totalsForView();
+  var body = $('#hoursBody');
+  var rows = Object.entries(t.horas).sort(function(a,b){ return b[1]-a[1]; });
+  body.innerHTML = rows.map(function(e){
+    var cc=e[0], h=e[1], rate=rates[cc]||0, custo=h*rate;
+    return '<tr class="'+(rate>0?'':'missing-rate')+'"><td>'+htmlEscape(cc)+'</td><td class="num">'+h.toFixed(2)+' h</td>' +
+      '<td class="num"><input class="rate-input" type="number" min="0" step="0.01" placeholder="0,00" value="'+(rates[cc]!=null?rates[cc]:'')+'" data-cc="'+htmlEscape(cc)+'"></td>' +
+      '<td class="num" data-cost-cell>'+fmt(custo)+'</td></tr>';
+  }).join('');
+  var totalH = rows.reduce(function(s,e){ return s+e[1]; },0);
+  var totalCost = rows.reduce(function(s,e){ return s+e[1]*(rates[e[0]]||0); },0);
+  $('#hoursTotalH').textContent = totalH.toFixed(2)+' h';
+  $('#hoursTotalCost').textContent = fmt(totalCost);
+  body.querySelectorAll('.rate-input').forEach(function(inp){
+    inp.addEventListener('input', function(e){
+      var cc = e.target.dataset.cc;
+      var v = parseFloat(String(e.target.value).replace(',','.'));
+      rates[cc] = isNaN(v) ? 0 : v;
+      saveRates();
+      renderAll();
+    });
+  });
+}
+var materialSearchTerm = '';
+var currentGroupKey = null;
+var materialOpenPaths = {};
+function renderMaterialSubtabs(){
+  var wrap = $('#materialSubtabs');
+  var ops = opsInView();
+  var tops = [];
+  ops.forEach(function(op){
+    topLevelPositions(op).forEach(function(node,idx){
+      tops.push({node:node, key:op+'|'+idx+'|'+node.code, total:nodeFullTotal(node), count:nodeLeafCount(node)});
+    });
+  });
+  var search = materialSearchTerm.trim().toLowerCase();
+  var filtered = tops.filter(function(t){ return !search || nodeMatches(t.node, search); })
+    .sort(function(a,b){ return b.total-a.total; });
+  var grandTotal = tops.reduce(function(s,t){ return s+t.total; },0);
+  var max = Math.max.apply(null, filtered.map(function(t){ return t.total; }).concat([1]));
+  wrap.innerHTML = filtered.map(function(t,i){
+    var n = t.node;
+    var share = max>0 ? (t.total/max*100) : 0;
+    var pct = grandTotal>0 ? (t.total/grandTotal*100).toFixed(1)+'%' : '';
+    var sub = n.leaf ? 'insumo direto' : t.count+' componente'+(t.count>1?'s':'');
+    return '<button type="button" class="material-rank-item'+(t.key===currentGroupKey?' active':'')+'" style="--share:'+share+'%" data-key="'+htmlEscape(t.key)+'">' +
+      '<span>'+String(i+1).padStart(2,'0')+'</span>' +
+      '<span class="material-rank-main"><strong>'+htmlEscape(n.desc||n.code)+'</strong><small>'+sub+'</small></span>' +
+      '<span class="material-rank-value"><strong>'+fmt(t.total)+'</strong><small>'+pct+'</small></span>' +
+      '</button>';
+  }).join('') || '<div class="subtle" style="padding:10px;">Nenhum item encontrado.</div>';
+  wrap.querySelectorAll('.material-rank-item').forEach(function(btn,i){
+    btn.addEventListener('click', function(){ currentGroupKey = btn.dataset.key; renderMaterialSubtabs(); });
+    var t = filtered[i];
+    if(t) bindCcHover(btn, t.node.ref, t.node.op, !t.node.leaf, t.node.desc||t.node.code);
+  });
+  renderMaterialContent(filtered);
+}
+function renderMaterialContent(topList){
+  var content = $('#materialGroupContent');
+  var t = topList.find(function(x){ return x.key===currentGroupKey; }) || topList[0];
+  if(!t){ content.innerHTML = '<div class="material-empty">Selecione um grupo no ranking para ver o detalhamento.</div>'; return; }
+  var node = t.node;
+  var bomOk = bomAplicavel(node.op);
+  var headMeta = node.leaf
+    ? 'Cod. '+htmlEscape(node.code)+' · insumo direto da posicao raiz (sem sub-estrutura)'
+    : 'Cod. '+htmlEscape(node.code)+' · Ref. '+htmlEscape(node.ref)+' · Seq.OP '+htmlEscape(node.seqOp)+' · '+t.count+' componente'+(t.count>1?'s':'')+'. Clique em um sub-conjunto para visualizar seus componentes por nivel.';
+  content.innerHTML =
+    '<div class="material-detail-head"><h3 id="materialDetailTitle">'+htmlEscape(node.desc||node.code)+'</h3><span class="cost">'+fmt(t.total)+'</span></div>' +
+    '<div class="subtle" style="margin-bottom:10px;">'+headMeta+'</div>' +
+    (bomOk ? '<div class="subtle" style="margin-bottom:10px;">Comparado com BOM padrao: '+htmlEscape(BOM_PADRAO.rootDesc)+' — colunas "Padrao" e "Desvio" nos componentes-folha.</div>' : '') +
+    (node.leaf ? '<div class="material-tree">'+renderMatLeaves([node], bomOk)+'</div>'
+               : renderMatTree(node.children, t.key, 1, bomOk));
+  bindCcHover($('#materialDetailTitle'), node.ref, node.op, !node.leaf, node.desc||node.code);
+  content.querySelectorAll('.tree-head[data-toggle-path]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var p = btn.dataset.togglePath;
+      materialOpenPaths[p] = !materialOpenPaths[p];
+      btn.closest('.tree-block').classList.toggle('open', materialOpenPaths[p]);
+    });
+    bindCcHover(btn, btn.dataset.ref, btn.dataset.op, true, btn.dataset.label);
+  });
+  content.querySelectorAll('.tree-leaf').forEach(function(el){
+    bindCcHover(el, el.dataset.ref, el.dataset.op, el.dataset.issub==='1', el.dataset.label);
+  });
+}
+/* Um "no" (posicao/CJ) vira um bloco recolhivel com sua propria arvore de filhos;
+   um insumo-folha (materia-prima de verdade, sem posicao propria) vira uma linha
+   simples. Quando um bloco mistura sub-conjuntos e insumos diretos, os insumos
+   diretos ficam destacados a parte ("Componentes diretos"), como no relatorio de
+   referencia da diretoria. */
+function renderMatTree(nodes, path, depth, bomOk){
+  var branches = nodes.filter(function(n){ return !n.leaf; }).sort(function(a,b){ return nodeFullTotal(b)-nodeFullTotal(a); });
+  var leaves = nodes.filter(function(n){ return n.leaf; }).sort(function(a,b){ return b.custo-a.custo; });
+  var branchHtml = branches.map(function(node){
+    var id = path+'>'+node.code;
+    var isOpen = !!materialOpenPaths[id];
+    var total = nodeFullTotal(node);
+    var leafCount = nodeLeafCount(node);
+    return '<div class="tree-block depth-'+Math.min(depth,3)+(isOpen?' open':'')+'">' +
+      '<button class="tree-head" type="button" data-toggle-path="'+htmlEscape(id)+'" data-ref="'+htmlEscape(node.ref)+'" data-op="'+htmlEscape(node.op)+'" data-label="'+htmlEscape(node.desc)+'">' +
+        '<span><span class="chevron" aria-hidden="true"></span><strong>'+htmlEscape(node.desc)+'</strong><small>cod. '+htmlEscape(node.code)+' · Seq '+htmlEscape(node.seqOp)+' · '+leafCount+' componente'+(leafCount>1?'s':'')+'</small></span>' +
+        '<span class="component-count">sub-conjunto</span>' +
+        '<span class="tree-cost">'+fmt(total)+'</span>' +
+      '</button>' +
+      '<div class="tree-body">'+renderMatTree(node.children, id, depth+1, bomOk)+'</div>' +
+    '</div>';
+  }).join('');
+  var leafHtml = renderMatLeaves(leaves, bomOk);
+  var directHtml = (branches.length && leaves.length) ?
+    '<div class="tree-direct"><div class="tree-direct-head"><strong>Componentes diretos deste conjunto</strong><span>'+leaves.length+' item'+(leaves.length>1?'s':'')+'</span><span class="tree-cost">'+fmt(leaves.reduce(function(s,n){ return s+(n.custo||0); },0))+'</span></div><div class="tree-direct-body">'+leafHtml+'</div></div>'
+    : leafHtml;
+  return '<div class="material-tree">'+branchHtml+directHtml+'</div>';
+}
+function renderMatLeaves(leaves, bomOk){
+  return leaves.map(function(l){
+    var bomCols = '';
+    if(bomOk){
+      var b = BOM_PADRAO.porRef[l.ref];
+      if(b){
+        /* desvio e' calculado pelo TOTAL da referencia na OP inteira (todas as posicoes onde ela
+           aparece), nao so nesta linha - senao um componente dividido em 2 posicoes (normal) pareceria
+           erradamente "faltando" em cada uma delas isoladamente. */
+        var qtyTotalOp = qtyTotalRefNaOp(l.op, l.ref);
+        var desvio = qtyTotalOp - b.qtdPadrao;
+        var desvioStyle = Math.abs(desvio)>0.001 ? 'color:var(--amber);font-weight:800;' : 'color:var(--green);';
+        bomCols = '<span class="tree-num muted" title="Qtd. padrao do BOM para esta referencia (produto inteiro)">'+b.qtdPadrao+'</span>' +
+          '<span class="tree-num" style="'+desvioStyle+'" title="Desvio = total usado nesta OP (todas as posicoes) menos o padrao">'+(desvio>0?'+':'')+desvio+'</span>';
+      } else {
+        bomCols = '<span class="tree-num muted">—</span><span class="tree-num muted">sem BOM</span>';
+      }
+    }
+    var unitTxt = (l.unitCost!=null && l.unitCost!==0) ? fmt(l.unitCost) : '<span class="muted">—</span>';
+    return '<div class="tree-leaf'+(bomOk?' tree-leaf-bom':'')+'" data-ref="'+htmlEscape(l.ref||l.code)+'" data-op="'+htmlEscape(l.op)+'" data-issub="'+(l.isSub?'1':'0')+'" data-label="'+htmlEscape(l.desc)+'">' +
+      '<span class="tree-code">'+htmlEscape(l.ref||l.code)+'</span>' +
+      '<span class="tree-desc">'+htmlEscape(l.desc)+(l.isSub?' <span class="pill warn" title="Este sub-conjunto ja aparece expandido em outra posicao desta OP - custo contado la, nao aqui">outra ocorrência</span>':'')+'</span>' +
+      '<span class="tree-num">'+(l.qtd!=null?l.qtd:'')+(l.un?' '+htmlEscape(l.un):'')+'</span>' +
+      '<span class="tree-num">'+unitTxt+'</span>' +
+      '<span class="tree-num tree-total">'+fmt(l.custo)+'</span>' + bomCols +
+    '</div>';
+  }).join('');
+}
+/* Painel unico (igual ao anexo da diretoria): rateio real e custo inferido de outra
+   OP viram linhas do MESMO tipo (Item / Processo / Origem / Custo), so distinguidos
+   pela coluna Origem - mantendo a logica de rateio+inferencia, so simplificando a
+   apresentacao visual. O detalhamento bruto por remessa fica num "ver mais"
+   recolhivel, para auditoria, sem poluir a leitura principal. */
+function renderTerc(){
+  var ops = opsInView();
+  var linhas = [];
+  ops.forEach(function(op){
+    var porRef = {};
+    tercRateio(op).forEach(function(e){
+      var ref = e.row.referencia || ('__semref__'+e.row.desc);
+      if(!porRef[ref]) porRef[ref] = {desc:e.row.desc, procs:{}};
+      var proc = e.row.ccDesc || e.row.cc || 'Servico';
+      porRef[ref].procs[proc] = (porRef[ref].procs[proc]||0) + e.valorAtribuido;
+    });
+    Object.keys(porRef).forEach(function(ref){
+      Object.keys(porRef[ref].procs).forEach(function(proc){
+        linhas.push({desc:porRef[ref].desc, ref:ref, processo:proc, custo:porRef[ref].procs[proc], origem:'OP atual', badges:''});
+      });
+    });
+    tercInferidos(op).forEach(function(e){
+      var itemRow = ITENS.find(function(r){ return r.itemRef===e.ref; });
+      var label = itemRow ? itemRow.itemDesc : e.ref;
+      var badges = '';
+      if(e.divergeDoRecorrente) badges += ' <span class="pill warn" title="Preco mais recorrente no historico: '+fmt(e.precoRecorrente)+'">preco variou</span>';
+      if(e.processosAlternativosIgnorados>0) badges += ' <span class="pill" title="Esta referencia tambem apareceu com outro(s) processo(s) no historico - usado apenas o mais recorrente">+'+e.processosAlternativosIgnorados+' alt.</span>';
+      if(e.ocorrencias===1) badges += ' <span class="pill warn" title="Apenas 1 ocorrencia historica no arquivo inteiro - baixa confianca">1 ocorr.</span>';
+      linhas.push({desc:label, ref:e.ref, processo:e.processo, custo:e.valorInferido, origem:'Inferido da OP '+e.opOrigem, badges:badges});
+    });
+  });
+  linhas.sort(function(a,b){ return b.custo-a.custo; });
+  $('#tercBody').innerHTML = linhas.map(function(l){
+    return '<tr><td>'+htmlEscape(l.desc)+'<div class="subtle">'+htmlEscape(l.ref)+'</div></td>' +
+      '<td>'+htmlEscape(l.processo)+l.badges+'</td>' +
+      '<td><span class="pill'+(l.origem==='OP atual'?' ok':' warn')+'">'+htmlEscape(l.origem)+'</span></td>' +
+      '<td class="num">'+fmt(l.custo)+'</td></tr>';
+  }).join('') || '<tr><td colspan="4" class="subtle">Sem custos de terceiros para esta selecao.</td></tr>';
+  $('#tercTotal').textContent = fmt(linhas.reduce(function(s,l){ return s+l.custo; },0));
+
+  var rawRows = [];
+  ops.forEach(function(op){ rawRows = rawRows.concat(tercRowsForOp(op)); });
+  rawRows.sort(function(a,b){ return b.valor-a.valor; });
+  $('#tercRawBody').innerHTML = rawRows.map(function(r){
+    return '<tr><td>'+htmlEscape(r.desc)+'<div class="subtle">'+htmlEscape(r.referencia)+'</div></td><td>'+htmlEscape(r.ccDesc)+'</td><td>'+htmlEscape(r.fornecedorNome)+'</td><td class="num">'+fmt(r.valor)+'</td></tr>';
+  }).join('') || '<tr><td colspan="4" class="subtle">Sem retornos de terceiros para esta selecao.</td></tr>';
+  $('#tercRawTotal').textContent = fmt(rawRows.reduce(function(s,r){ return s+r.valor; },0));
+}
+
+function renderExcedente(){
+  var ops = opsInView();
+  var empty = $('#excedenteEmpty');
+  var panel = $('#excedentePanelWrap');
+  if(!BOM_PADRAO){
+    panel.hidden = true;
+    empty.hidden = false;
+    empty.textContent = 'Carregue o BOM padrão (botão "Carregar BOM padrão" no topo) para habilitar esta análise.';
+    return;
+  }
+  var opsComBom = ops.filter(function(op){ return bomAplicavel(op); });
+  if(!opsComBom.length){
+    panel.hidden = true;
+    empty.hidden = false;
+    empty.textContent = 'O BOM padrão carregado ("'+BOM_PADRAO.rootDesc+'") não corresponde ao produto desta OP — sem base de comparação.';
+    return;
+  }
+  empty.hidden = true;
+  panel.hidden = false;
+  var linhas = [];
+  opsComBom.forEach(function(op){ linhas = linhas.concat(analisaExcedente(op)); });
+  linhas.sort(function(a,b){ return b.valorAdicionalTotal-a.valorAdicionalTotal; });
+  var confLabel = {
+    alta:'<span class="pill ok">alta</span>',
+    revisar:'<span class="pill warn">revisar</span>',
+    suspeita:'<span class="pill bad">suspeita</span>'
+  };
+  $('#excedenteBody').innerHTML = linhas.map(function(l){
+    var multiOp = opsComBom.length>1 ? (' · OP '+htmlEscape(l.op)) : '';
+    var servCell = l.processo ? (fmt(l.unitCostServ)+'<div class="subtle">'+htmlEscape(l.processo)+' · '+htmlEscape(l.origem)+'</div>') : '—';
+    return '<tr><td>'+htmlEscape(l.codigo)+'<div class="subtle">'+htmlEscape(l.ref)+multiOp+'</div></td>' +
+      '<td>'+htmlEscape(l.descricao)+'</td>' +
+      '<td class="num">'+l.qtdPrevista+'</td>' +
+      '<td class="num">'+l.qtdEfetiva+'</td>' +
+      '<td class="num" style="color:var(--red-soft);font-weight:800;">+'+l.qtdExcedente.toFixed(2)+(l.un?(' '+htmlEscape(l.un)):'')+'</td>' +
+      '<td class="num">'+fmt(l.unitCostMat)+'</td>' +
+      '<td class="num">'+servCell+'</td>' +
+      '<td class="num">'+fmt(l.valorAdicionalMat)+'</td>' +
+      '<td class="num">'+fmt(l.valorAdicionalServ)+'</td>' +
+      '<td class="num" style="font-weight:800;">'+fmt(l.valorAdicionalTotal)+'</td>' +
+      '<td title="'+htmlEscape(l.confiancaMotivo)+'">'+(confLabel[l.confianca]||'')+'</td>' +
+      '</tr>';
+  }).join('') || '<tr><td colspan="11" class="subtle">Nenhum componente com consumo acima do previsto no BOM.</td></tr>';
+  var totalTudo = linhas.reduce(function(s,l){ return s+l.valorAdicionalTotal; },0);
+  var totalAlta = linhas.filter(function(l){ return l.confianca==='alta'; }).reduce(function(s,l){ return s+l.valorAdicionalTotal; },0);
+  $('#excedenteTotal').textContent = fmt(totalTudo);
+  $('#excedenteTotalAlta').textContent = fmt(totalAlta);
+}
+
+/* ================= COMPARATIVO ================= */
+var chartPie=null, chartBar=null, chartCompare=null;
+function renderCompareSection(){
+  var sec = $('#opCompareSection');
+  if(!opB){ sec.hidden = true; return; }
+  sec.hidden = false;
+  $('#compareTitle').textContent = 'OP '+opA+' × OP '+opB;
+  var tA = (function(){ var save=currentView; currentView='A'; var r=totalsForView(); currentView=save; return r; })();
+  var tB = (function(){ var save=currentView; currentView='B'; var r=totalsForView(); currentView=save; return r; })();
+
+  if(chartCompare) chartCompare.destroy();
+  chartCompare = new Chart($('#costCompareChart').getContext('2d'), {
+    type:'bar',
+    data:{ labels:['OP '+opA,'OP '+opB], datasets:[
+      {label:'Matéria-prima', data:[tA.mp,tB.mp], backgroundColor:'#E8000D'},
+      {label:'Terceiros', data:[tA.terc,tB.terc], backgroundColor:'#f6c453'},
+      {label:'Mão de obra', data:[tA.mo,tB.mo], backgroundColor:'#20c997'}
+    ]},
+    options:{ responsive:true, maintainAspectRatio:false, scales:{ x:{stacked:true, ticks:{color:'#a8afbc'}, grid:{color:'#23262c'}}, y:{stacked:true, ticks:{color:'#a8afbc'}, grid:{color:'#23262c'}} }, plugins:{ legend:{labels:{color:'#f5f7fb'}} } }
+  });
+
+  var ccAll = {};
+  Object.keys(tA.horas).concat(Object.keys(tB.horas)).forEach(function(cc){ ccAll[cc]=1; });
+  var ccNames = Object.keys(ccAll);
+  if(chartBar) chartBar.destroy();
+  chartBar = new Chart($('#barChart').getContext('2d'), {
+    type:'bar',
+    data:{ labels:ccNames, datasets:[
+      {label:'Horas OP '+opA, data:ccNames.map(function(cc){ return tA.horas[cc]||0; }), backgroundColor:'#E8000D'},
+      {label:'Horas OP '+opB, data:ccNames.map(function(cc){ return tB.horas[cc]||0; }), backgroundColor:'#555b66'}
+    ]},
+    options:{ responsive:true, maintainAspectRatio:false, indexAxis:'y', scales:{ x:{ticks:{color:'#a8afbc'},grid:{color:'#23262c'}}, y:{ticks:{color:'#a8afbc'},grid:{color:'#23262c'}} }, plugins:{ legend:{labels:{color:'#f5f7fb'}} } }
+  });
+
+  var totalGeral = tA.total + tB.total;
+  if(chartPie) chartPie.destroy();
+  chartPie = new Chart($('#pieChart').getContext('2d'), {
+    type:'doughnut',
+    data:{ labels:['Matéria-prima','Terceiros','Mão de obra'], datasets:[{ data:[tA.mp+tB.mp, tA.terc+tB.terc, tA.mo+tB.mo], backgroundColor:['#E8000D','#f6c453','#20c997'] }] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{labels:{color:'#f5f7fb'}} } }
+  });
+
+  var funnelRows = ccNames.map(function(cc){
+    var h = (tA.horas[cc]||0) + (tB.horas[cc]||0);
+    return {cc:cc, horas:h, custo:h*(rates[cc]||0)};
+  }).sort(function(a,b){ return b.custo-a.custo || b.horas-a.horas; });
+  var maxH = Math.max.apply(null, funnelRows.map(function(r){ return r.horas; }).concat([1]));
+  $('#costFunnel').innerHTML = funnelRows.map(function(r,i){
+    return '<div class="ranking-row" style="--share:'+(r.horas/maxH*100)+'%"><span class="rank">'+(i+1)+'</span>' +
+      '<span class="ranking-cc"><strong>'+htmlEscape(r.cc)+'</strong><small>'+r.horas.toFixed(1)+' h</small></span>' +
+      '<span class="ranking-value"><strong>'+(r.custo>0?fmt(r.custo):'--')+'</strong></span></div>';
+  }).join('');
+}
+
+/* ================= BUSCA DE OP ================= */
+function setupOpPicker(inputSel, listSel, onPick){
+  var input = $(inputSel), list = $(listSel);
+  function renderList(term){
+    var t = (term||'').trim().toLowerCase();
+    var items = OPS.filter(function(o){ return !t || String(o.op).includes(t) || String(o.desc).toLowerCase().includes(t); }).slice(0,40);
+    list.innerHTML = items.map(function(o){
+      return '<div class="op-picker-item" data-op="'+htmlEscape(o.op)+'"><b>OP '+htmlEscape(o.op)+'</b><small>'+htmlEscape(o.desc||'')+' · '+htmlEscape(o.status||'')+'</small></div>';
+    }).join('') || '<div class="op-picker-item subtle">Nenhuma OP encontrada</div>';
+    list.querySelectorAll('.op-picker-item[data-op]').forEach(function(it){
+      it.addEventListener('mousedown', function(e){ e.preventDefault(); onPick(it.dataset.op); list.classList.remove('open'); });
+    });
+  }
+  input.addEventListener('focus', function(){ renderList(input.value); list.classList.add('open'); });
+  input.addEventListener('input', function(){ renderList(input.value); list.classList.add('open'); });
+  input.addEventListener('blur', function(){ setTimeout(function(){ list.classList.remove('open'); },120); });
+}
+
+/* ================= EXPORTACAO ================= */
+function csvCell(v){ var s = String(v==null?'':v); if(/[",;\n]/.test(s)) s = '"'+s.replace(/"/g,'""')+'"'; return s; }
+function exportCsv(){
+  var t = totalsForView();
+  var lines = [];
+  lines.push(['Categoria','Descricao','Valor'].join(';'));
+  lines.push(['Materia-prima','Total',t.mp.toFixed(2)].join(';'));
+  lines.push(['Terceiros','Total',t.terc.toFixed(2)].join(';'));
+  lines.push(['Mao de obra','Total',t.mo.toFixed(2)].join(';'));
+  lines.push(['Custo Total','',t.total.toFixed(2)].join(';'));
+  lines.push([]);
+  lines.push(['Centro de Custo','Horas','R$/h','Custo'].join(';'));
+  Object.entries(t.horas).forEach(function(e){
+    lines.push([csvCell(e[0]), e[1].toFixed(2), (rates[e[0]]||0).toFixed(2), (e[1]*(rates[e[0]]||0)).toFixed(2)].join(';'));
+  });
+  var blob = new Blob(["﻿"+lines.join('\n')], {type:'text/csv;charset=utf-8'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url; a.download = 'custo_op_'+(opB?opA+'_'+opB:opA)+'.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+function exportPdf(){
+  var t = totalsForView();
+  var hourRows = Object.entries(t.horas).sort(function(a,b){return b[1]-a[1];}).map(function(e){
+    var rate = rates[e[0]]||0;
+    return '<tr><td>'+htmlEscape(e[0])+'</td><td>'+e[1].toFixed(2)+' h</td><td>'+(rate>0?fmt(rate):'A preencher')+'</td><td>'+fmt(e[1]*rate)+'</td></tr>';
+  }).join('');
+  var tercRows = [];
+  opsInView().forEach(function(op){ tercRows = tercRows.concat(tercRowsForOp(op)); });
+  var tercHtml = tercRows.map(function(r){ return '<tr><td>'+htmlEscape(r.desc)+'</td><td>'+htmlEscape(r.ccDesc)+'</td><td>'+fmt(r.valor)+'</td></tr>'; }).join('');
+  var titulo = opB ? ('OP '+opA+' x OP '+opB) : ('OP '+opA);
+  var report = '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Custo '+htmlEscape(titulo)+'</title><style>@page{size:A4 landscape;margin:12mm}*{box-sizing:border-box}body{margin:0;background:#fff;color:#15171d;font-family:Arial,Helvetica,sans-serif;font-size:11px}h2{margin:0;text-transform:uppercase}.header{background:linear-gradient(135deg,#16191f,#27060a);color:#fff;padding:18px 22px;border-top:5px solid #e8000d;display:flex;justify-content:space-between;align-items:center}.brand{font-size:28px;font-weight:800}.meta{text-align:right;line-height:1.5;color:#d7dce6}.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px}.card{border-left:4px solid #e8000d;background:#f3f5f8;padding:12px;min-height:74px}.card .k{color:#5b6472;text-transform:uppercase;font-size:10px;font-weight:700}.card .v{margin-top:8px;font-size:20px;font-weight:800}.card.total{background:#2a080b;color:#fff}.card.total .v{color:#ff2733}.section{margin-top:14px}table{width:100%;border-collapse:collapse;margin-top:8px}th{background:#111318;color:#fff;text-align:left;padding:7px;font-size:10px;text-transform:uppercase}td{border:1px solid #d8dde5;padding:6px 7px;vertical-align:top}tbody tr:nth-child(even) td{background:#f7f8fa}.no-print{position:fixed;right:16px;top:16px;z-index:2;padding:10px 14px;background:#e8000d;color:white;border:0;font-weight:700}@media print{.no-print{display:none}}</style></head><body><button class="no-print" onclick="window.print()">Salvar PDF</button><div class="header"><div><div class="brand">TECNODRILL</div><div>Custo de producao - '+htmlEscape(titulo)+'</div></div><div class="meta"><b>'+htmlEscape(titulo)+'</b><br>Materia-prima . Mao de obra . Terceiros<br>Relatorio executivo</div></div><div class="cards"><div class="card"><div class="k">Materia-prima</div><div class="v">'+fmt(t.mp)+'</div></div><div class="card"><div class="k">Terceiros</div><div class="v">'+fmt(t.terc)+'</div></div><div class="card"><div class="k">Mao de obra</div><div class="v">'+fmt(t.mo)+'</div></div><div class="card total"><div class="k">Custo total</div><div class="v">'+fmt(t.total)+'</div></div></div><div class="section"><h2>Mao de obra por centro de custo</h2><table><thead><tr><th>Centro de custo</th><th>Horas</th><th>R$/h</th><th>Custo</th></tr></thead><tbody>'+hourRows+'</tbody></table></div><div class="section"><h2>Terceiros</h2><table><thead><tr><th>Item</th><th>Processo</th><th>Custo</th></tr></thead><tbody>'+tercHtml+'</tbody></table></div></body></html>';
+  var url = URL.createObjectURL(new Blob([report], {type:'text/html;charset=utf-8'}));
+  var win = window.open(url, '_blank');
+  if(!win){ var a=document.createElement('a'); a.href=url; a.download='custo_'+titulo.replace(/\s+/g,'_')+'.html'; a.click(); }
+}
+
+/* ================= EVENTOS ================= */
+$('#uploadDrop').addEventListener('click', function(e){ if(e.target.id!=='fileInput') $('#fileInput').click(); });
+$('#fileInput').addEventListener('change', function(e){ var f=e.target.files&&e.target.files[0]; if(f) handleFile(f); });
+$('#uploadDrop').addEventListener('dragover', function(e){ e.preventDefault(); });
+$('#uploadDrop').addEventListener('drop', function(e){ e.preventDefault(); var f=e.dataTransfer.files&&e.dataTransfer.files[0]; if(f) handleFile(f); });
+$('#bomPadraoBtn').addEventListener('click', function(){ $('#bomPadraoInput').click(); });
+$('#bomPadraoInput').addEventListener('change', function(e){ var f=e.target.files&&e.target.files[0]; if(f) handleBomPadraoFile(f); });
+$('#trocarArquivoBtn').addEventListener('click', function(){
+  ITENS=[]; ACOMP=[]; TERC=[]; OPS=[]; opA=null; opB=null;
+  $('#appWrap').hidden = true; $('#topbarActions').hidden = true;
+  $('#uploadWrap').hidden = false;
+  $('#scopeLabel').textContent = 'Nenhum arquivo carregado';
+  $('#fileInput').value = '';
+});
+$('#materialSearch').addEventListener('input', function(e){ materialSearchTerm = e.target.value; currentGroupKey=null; renderMaterialSubtabs(); });
+$('#exportCsvBtn').addEventListener('click', exportCsv);
+$('#exportCsvReport').addEventListener('click', exportCsv);
+$('#exportPdfBtn').addEventListener('click', exportPdf);
+$('#exportPdfReport').addEventListener('click', exportPdf);
+document.querySelectorAll('.side-nav a').forEach(function(a){
+  a.addEventListener('click', function(){
+    document.querySelectorAll('.side-nav a').forEach(function(x){ x.classList.remove('active'); });
+    a.classList.add('active');
+  });
+});
+setupOpPicker('#opSearchA','#opListA', selecionarOpA);
+setupOpPicker('#opSearchB','#opListB', selecionarOpB);
+</script>
+</body>
+</html>
