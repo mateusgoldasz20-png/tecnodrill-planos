@@ -122,6 +122,7 @@
   .pill.op{border-color:#3a3a3a; color:#ccc; font-weight:700;}
   .pill.ok{border-color:rgba(32,201,151,.55); color:var(--green);}
   .pill.warn{border-color:rgba(246,196,83,.7); color:var(--amber);}
+  .pill.bad{border-color:rgba(232,0,13,.55); color:var(--red-soft);}
 
   .material-layout{display:grid; grid-template-columns:minmax(320px,380px) minmax(0,1fr); gap:14px; align-items:start;}
   .material-ranking{background:var(--panel); border:1px solid var(--line); padding:14px; border-radius:6px;}
@@ -231,6 +232,7 @@
       <a data-tab="mao-obra" href="#mao-obra">◷ Mão de Obra</a>
       <a data-tab="materiais" href="#materiais">▤ Matéria-prima</a>
       <a data-tab="terceiros" href="#terceiros">◇ Terceiros</a>
+      <a data-tab="excedente" href="#excedente">⚠ Excedente</a>
     </nav>
   </aside>
   <main class="main-shell">
@@ -397,6 +399,36 @@
             </table>
           </div>
           <table style="margin-top:6px;"><tfoot><tr><td colspan="3">Total bruto das remessas</td><td class="num" id="tercTotal"></td></tr></tfoot></table>
+        </div>
+      </section>
+
+      <section id="excedente">
+        <div class="sec-head">
+          <h2>Excedente de Consumo</h2>
+          <div class="note">Compara o consumo GLOBAL de cada componente nesta OP (soma de todas as posicões) com a quantidade total prevista no BOM padrão carregado. A posição da estrutura onde o componente foi usado é irrelevante — só importa o total. Se a qtd. efetiva for nula, zerada ou menor que a prevista, considera-se a própria prevista (déficit nunca conta, só o que passou do previsto).</div>
+        </div>
+        <div id="excedenteEmpty" class="subtle" style="padding:14px;" hidden></div>
+        <div class="panel" id="excedentePanelWrap" hidden>
+          <div class="scroll-box" style="max-height:460px;">
+            <table>
+              <thead><tr>
+                <th>Código</th><th>Descrição</th><th class="num">Qtd. prevista</th><th class="num">Qtd. efetiva</th>
+                <th class="num">Qtd. excedente</th><th class="num">Custo unit. material</th><th class="num">Custo unit. terceiro</th>
+                <th class="num">Valor adic. material</th><th class="num">Valor adic. terceiro</th><th class="num">Valor adic. total</th><th>Confiança</th>
+              </tr></thead>
+              <tbody id="excedenteBody"></tbody>
+            </table>
+          </div>
+          <table style="margin-top:6px;"><tfoot>
+            <tr><td colspan="9">Total (todos os itens, qualquer confiança)</td><td class="num" id="excedenteTotal"></td><td></td></tr>
+            <tr><td colspan="9">Total (apenas confiança "alta")</td><td class="num" id="excedenteTotalAlta"></td><td></td></tr>
+          </tfoot></table>
+          <div class="subtle" style="margin-top:10px;">
+            <b>Confiança:</b>
+            <span class="pill ok">alta</span> peça discreta (PC), sem repetição idêntica em outra OP — forte indício de retrabalho/perda/quebra real.&nbsp;
+            <span class="pill warn">revisar</span> medida contínua (mm/m²/kg) — conferir manualmente, corte/medição pode gerar desvio sem ser perda real.&nbsp;
+            <span class="pill bad">suspeita</span> a mesma quantidade efetiva se repete idêntica em outras OPs da mesma família — indício de BOM desatualizado, não excedente real.
+          </div>
         </div>
       </section>
 
@@ -578,6 +610,7 @@ function handleBomPadraoFile(file){
       var bom = parseBomPadrao(rows);
       if(!bom) throw new Error('Nao foi possivel reconhecer o formato do arquivo (esperado: relatorio "Listagem de Formulacoes" do SIGER).');
       BOM_PADRAO = bom;
+      _desatualizadoCache = null;
       var st = $('#bomPadraoStatus');
       st.style.display='inline-block';
       st.textContent = 'BOM padrao: '+bom.rootDesc+' ('+Object.keys(bom.porRef).length+' componentes)';
@@ -718,6 +751,7 @@ function handleFile(file){
   });
 }
 function buildOpsList(){
+  _desatualizadoCache = null;
   var m = {};
   ITENS.forEach(function(r){
     if(!m[r.op]) m[r.op] = {op:r.op, desc:r.parentDesc, status:r.posDesc};
@@ -917,6 +951,112 @@ function allCcNames(){
   return Object.keys(set).sort();
 }
 
+/* ================= EXCEDENTE DE CONSUMO (comparacao GLOBAL com o BOM padrao) =================
+   Regra unica, sem excecao por posicao/CJ: soma-se TODAS as ocorrencias da referencia no BOM
+   (Quantidade Prevista) e TODAS as ocorrencias dela nesta OP, em qualquer posicao (Quantidade
+   Efetiva). Se a efetiva for nula/zerada/menor que a prevista, usa-se a propria prevista (nunca
+   conta deficit). Excedente = utilizada - prevista, so quando positivo. A localizacao na
+   estrutura (em qual CJ o componente entrou) e irrelevante para esta regra. */
+function itemInfoNaOp(op, ref){
+  var r = ITENS.find(function(x){ return x.op===op && x.itemRef===ref; });
+  return r ? {codigo:r.itemCode, desc:r.itemDesc, unitCost:r.itemCusto} : null;
+}
+function analisaExcedenteBase(op){
+  if(!bomAplicavel(op)) return [];
+  var refsDaOp = {};
+  ITENS.forEach(function(r){ if(r.op===op && r.itemRef) refsDaOp[r.itemRef]=true; });
+  var realPorRef = {};
+  tercRateio(op).forEach(function(e){
+    var ref = e.row.referencia; if(!ref) return;
+    if(!realPorRef[ref]) realPorRef[ref] = {valor:0, procs:{}};
+    realPorRef[ref].valor += e.valorAtribuido;
+    var proc = e.row.ccDesc || e.row.cc || 'Servico';
+    realPorRef[ref].procs[proc] = (realPorRef[ref].procs[proc]||0) + e.valorAtribuido;
+  });
+  var linhas = [];
+  Object.keys(refsDaOp).forEach(function(ref){
+    var bom = BOM_PADRAO.porRef[ref];
+    if(!bom) return; /* componente fora do escopo do BOM padrao carregado */
+    var qtdPrevista = bom.qtdPadrao;
+    var qtdEfetiva = itensLeafQty[op+'|'+ref] || 0;
+    var qtdUtilizada = (qtdEfetiva && qtdEfetiva > qtdPrevista) ? qtdEfetiva : qtdPrevista;
+    var qtdExcedente = qtdUtilizada - qtdPrevista;
+    if(qtdExcedente <= 0.001) return;
+
+    var info = itemInfoNaOp(op, ref) || {};
+    var unitCostMat = info.unitCost || 0;
+    var valorAdicionalMat = qtdExcedente * unitCostMat;
+
+    var processo='', unitCostServ=0, origem='';
+    if(realPorRef[ref]){
+      var procs = Object.keys(realPorRef[ref].procs);
+      unitCostServ = qtdEfetiva>0 ? realPorRef[ref].valor/qtdEfetiva : 0;
+      processo = procs.join(' + '); origem = 'OP atual';
+    } else {
+      var dom = tercProcessoDominante(ref);
+      if(dom){
+        var maisRecente = dom.hist.slice().sort(function(a,b){ return b.dataSort-a.dataSort; })[0];
+        unitCostServ = maisRecente.unitCost; processo = dom.processo; origem = 'Inferido da OP '+maisRecente.op;
+      }
+    }
+    var valorAdicionalServ = qtdExcedente * unitCostServ;
+
+    linhas.push({
+      op:op, ref:ref, codigo:(info.codigo || bom.codigo), descricao:(info.desc || bom.desc), un:bom.un,
+      qtdPrevista:qtdPrevista, qtdEfetiva:qtdEfetiva, qtdExcedente:qtdExcedente,
+      unitCostMat:unitCostMat, unitCostServ:unitCostServ, processo:processo, origem:origem,
+      valorAdicionalMat:valorAdicionalMat, valorAdicionalServ:valorAdicionalServ,
+      valorAdicionalTotal:valorAdicionalMat+valorAdicionalServ
+    });
+  });
+  linhas.sort(function(a,b){ return b.valorAdicionalTotal-a.valorAdicionalTotal; });
+  return linhas;
+}
+/* Sinal de "BOM desatualizado": quando a MESMA qtd. efetiva se repete identica em 2+ OPs
+   (dentro de toda a familia de OPs aplicavel a este BOM padrao), o excedente provavelmente
+   nao e retrabalho - e o BOM que ainda nao foi atualizado para refletir o consumo real. */
+var _desatualizadoCache = null;
+function refsBomDesatualizado(){
+  if(_desatualizadoCache) return _desatualizadoCache;
+  var set = {};
+  if(!BOM_PADRAO){ _desatualizadoCache = set; return set; }
+  var opsAplicaveis = OPS.filter(function(o){ return bomAplicavel(o.op); }).map(function(o){ return o.op; });
+  var usadoPorRef = {};
+  opsAplicaveis.forEach(function(op){
+    analisaExcedenteBase(op).forEach(function(l){
+      (usadoPorRef[l.ref] = usadoPorRef[l.ref] || []).push(l.qtdEfetiva);
+    });
+  });
+  Object.keys(usadoPorRef).forEach(function(ref){
+    var valores = usadoPorRef[ref];
+    if(valores.length<2) return;
+    var contagem = {};
+    valores.forEach(function(v){ contagem[v] = (contagem[v]||0)+1; });
+    var max = Math.max.apply(null, Object.values(contagem));
+    if(max>=2) set[ref]=true;
+  });
+  _desatualizadoCache = set;
+  return set;
+}
+function analisaExcedente(op){
+  var desatualizado = refsBomDesatualizado();
+  return analisaExcedenteBase(op).map(function(l){
+    var conf, motivo;
+    if(desatualizado[l.ref]){
+      conf='suspeita';
+      motivo='Mesma quantidade efetiva se repete identica em outra(s) OP(s) da familia - provavel BOM desatualizado, nao necessariamente excedente real.';
+    } else if(l.un && l.un!=='PC'){
+      conf='revisar';
+      motivo='Medida continua ('+l.un+') - conferir manualmente, diferencas de corte/medicao podem inflar o desvio sem ser perda real.';
+    } else {
+      conf='alta';
+      motivo='Peca discreta (PC), sem repeticao identica em outras OPs da familia - indicio forte de retrabalho, perda ou quebra real.';
+    }
+    l.confianca = conf; l.confiancaMotivo = motivo;
+    return l;
+  });
+}
+
 /* ================= SELECAO DE OP ================= */
 function selecionarOpA(op){ opA = op; if(opB===op) opB=null; refreshAfterOpChange(); }
 function selecionarOpB(op){ opB = (op===opA) ? null : op; refreshAfterOpChange(); }
@@ -953,6 +1093,7 @@ function renderAll(){
   renderHours();
   renderMaterialSubtabs();
   renderTerc();
+  renderExcedente();
   renderCompareSection();
   $('#viewLabel').textContent = opB ? (currentView==='geral' ? 'Painel Geral' : 'OP '+(currentView==='A'?opA:opB)) : 'OP '+opA;
 }
@@ -1149,6 +1290,55 @@ function renderTerc(){
     }).join('');
     $('#tercInferidoTotal').textContent = fmt(inferidos.reduce(function(s,e){ return s+e.valorInferido; },0));
   }
+}
+
+function renderExcedente(){
+  var ops = opsInView();
+  var empty = $('#excedenteEmpty');
+  var panel = $('#excedentePanelWrap');
+  if(!BOM_PADRAO){
+    panel.hidden = true;
+    empty.hidden = false;
+    empty.textContent = 'Carregue o BOM padrão (botão "Carregar BOM padrão" no topo) para habilitar esta análise.';
+    return;
+  }
+  var opsComBom = ops.filter(function(op){ return bomAplicavel(op); });
+  if(!opsComBom.length){
+    panel.hidden = true;
+    empty.hidden = false;
+    empty.textContent = 'O BOM padrão carregado ("'+BOM_PADRAO.rootDesc+'") não corresponde ao produto desta OP — sem base de comparação.';
+    return;
+  }
+  empty.hidden = true;
+  panel.hidden = false;
+  var linhas = [];
+  opsComBom.forEach(function(op){ linhas = linhas.concat(analisaExcedente(op)); });
+  linhas.sort(function(a,b){ return b.valorAdicionalTotal-a.valorAdicionalTotal; });
+  var confLabel = {
+    alta:'<span class="pill ok">alta</span>',
+    revisar:'<span class="pill warn">revisar</span>',
+    suspeita:'<span class="pill bad">suspeita</span>'
+  };
+  $('#excedenteBody').innerHTML = linhas.map(function(l){
+    var multiOp = opsComBom.length>1 ? (' · OP '+htmlEscape(l.op)) : '';
+    var servCell = l.processo ? (fmt(l.unitCostServ)+'<div class="subtle">'+htmlEscape(l.processo)+' · '+htmlEscape(l.origem)+'</div>') : '—';
+    return '<tr><td>'+htmlEscape(l.codigo)+'<div class="subtle">'+htmlEscape(l.ref)+multiOp+'</div></td>' +
+      '<td>'+htmlEscape(l.descricao)+'</td>' +
+      '<td class="num">'+l.qtdPrevista+'</td>' +
+      '<td class="num">'+l.qtdEfetiva+'</td>' +
+      '<td class="num" style="color:var(--red-soft);font-weight:800;">+'+l.qtdExcedente.toFixed(2)+(l.un?(' '+htmlEscape(l.un)):'')+'</td>' +
+      '<td class="num">'+fmt(l.unitCostMat)+'</td>' +
+      '<td class="num">'+servCell+'</td>' +
+      '<td class="num">'+fmt(l.valorAdicionalMat)+'</td>' +
+      '<td class="num">'+fmt(l.valorAdicionalServ)+'</td>' +
+      '<td class="num" style="font-weight:800;">'+fmt(l.valorAdicionalTotal)+'</td>' +
+      '<td title="'+htmlEscape(l.confiancaMotivo)+'">'+(confLabel[l.confianca]||'')+'</td>' +
+      '</tr>';
+  }).join('') || '<tr><td colspan="11" class="subtle">Nenhum componente com consumo acima do previsto no BOM.</td></tr>';
+  var totalTudo = linhas.reduce(function(s,l){ return s+l.valorAdicionalTotal; },0);
+  var totalAlta = linhas.filter(function(l){ return l.confianca==='alta'; }).reduce(function(s,l){ return s+l.valorAdicionalTotal; },0);
+  $('#excedenteTotal').textContent = fmt(totalTudo);
+  $('#excedenteTotalAlta').textContent = fmt(totalAlta);
 }
 
 /* ================= COMPARATIVO ================= */
