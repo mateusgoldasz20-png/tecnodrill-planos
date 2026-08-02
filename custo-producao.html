@@ -101,7 +101,7 @@
   .status-dot{width:8px; height:8px; border-radius:50%; background:var(--amber); display:inline-block;}
   .status-dot.ok{background:var(--green);}
 
-  section{margin-bottom:34px; scroll-margin-top:92px;}
+  section{margin-bottom:34px; scroll-margin-top:150px;}
   .sec-head{display:flex; align-items:baseline; justify-content:space-between; margin-bottom:14px; gap:12px; flex-wrap:wrap;}
   .sec-head h2{font-size:24px; margin:0; font-weight:700; text-shadow:2px 2px 0 #000;}
   .sec-head .note{font-size:12px; color:var(--muted); font-family:'Inter',sans-serif;}
@@ -278,7 +278,7 @@
         <button class="btn export secondary" id="exportPdfBtn" type="button">Exportar PDF</button>
         <button class="btn secondary" id="bomPadraoBtn" type="button">Carregar BOM padrão</button>
         <input id="bomPadraoInput" type="file" accept=".xlsx,.xls" hidden>
-        <span class="pill" id="bomPadraoStatus" style="display:none;"></span>
+        <span class="pill" id="bomPadraoStatus" style="display:none; max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; vertical-align:middle;"></span>
         <button class="btn secondary" id="trocarArquivoBtn" type="button">Trocar arquivo</button>
       </div>
     </div>
@@ -612,14 +612,23 @@ var opA=null, opB=null, currentView='A';
 var RATE_STORAGE_KEY = 'tecnodrill_custo_rates_v1';
 var rates = loadRates();
 var acompByRef = {};
-var BOM_PADRAO = null; /* {rootRef, rootDesc, porRef:{ref:{codigo,desc,qtdPadrao,un}}} - opcional, carregado a parte */
+var BOM_PADRAO = null; /* {rootRef, rootDesc, porRef:{ref:{codigo,desc,qtdPadrao,un}}, porCodigo:{codigo:{custoUnitPadrao}}} - opcional, carregado a parte */
 
 /* ================= BOM PADRAO (relatorio "Listagem de Formulacoes" do SIGER) =================
    Arquivo separado (nao faz parte do export de custos). Formato de relatorio impresso:
    linha raiz = [codigo(numero), cmb, rev, referencia, descricao, ...]
    linhas de dado (a partir da proxima) = ['', codigo, referencia, descricao, seq, grd, qtd, un, ...]
    Quantidades ja vem "explodidas" (resolvidas para 1 unidade do produto final), entao basta
-   somar por referencia (um componente pode aparecer em mais de uma posicao da arvore). */
+   somar por referencia (um componente pode aparecer em mais de uma posicao da arvore).
+
+   Existe uma segunda variante do mesmo relatorio ("Dados: 1-Valores e Componentes"), com 3
+   colunas a mais: Val.Unitario, Valor Total, %Valor. Nessa variante, uma linha com "Valor
+   Total" em branco e' um CONJUNTO/CJ (sera "explodido" nas linhas seguintes) e o proprio
+   Val.Unitario ja e' o custo padrao (por unidade) daquele conjunto inteiro - sem precisar
+   remontar a arvore recursiva (o que se mostrou fragil: o relatorio nem sempre reinicia a
+   numeracao de sequencia ao entrar num novo conjunto, entao so a soma/fechamento de valores
+   nao fecha com seguranca em todos os niveis). Usamos isso para comparar "custo padrao" x
+   "custo real" de qualquer CJ/sub-conjunto na arvore de materiais, casando por Codigo. */
 function parseBomPadrao(rows){
   var dataStart=-1, rootRef=null, rootDesc=null, rootCode=null;
   for(var i=0;i<20 && i<rows.length;i++){
@@ -629,17 +638,33 @@ function parseBomPadrao(rows){
     }
   }
   if(dataStart<0) return null;
-  var porRef = {};
+  var headerRow = rows[dataStart];
+  var temValores = !!(headerRow && String(headerRow[8]||'').toLowerCase().indexOf('val')>=0);
+  if(headerRow && headerRow[1]==='Código') dataStart++;
+  var porRef = {}, porCodigo = {};
   for(var r=dataStart; r<rows.length; r++){
     var row = rows[r];
     if(!row || row.length<7) continue;
     var codigo=row[1], ref=row[2], desc=row[3], qtd=row[6], un=row[7];
     if(codigo===''||ref===undefined||ref==='') continue;
     var key = String(ref);
-    if(!porRef[key]) porRef[key] = {codigo:codigo, desc:desc, qtdPadrao:0, un:un};
-    porRef[key].qtdPadrao += Number(qtd)||0;
+    if(temValores){
+      var valUnit = Number(row[8])||0, valTotalCell = row[9];
+      var ehConjunto = (valTotalCell===''||valTotalCell===undefined||valTotalCell===null);
+      if(ehConjunto){
+        porCodigo[codigo] = {codigo:codigo, ref:key, desc:desc, un:un, custoUnitPadrao:valUnit};
+      } else {
+        /* soh soma folhas de verdade (insumo consumido) na quantidade padrao - a linha do
+           proprio conjunto/CJ nao entra aqui, pra nao contar junto com o que ele consome */
+        if(!porRef[key]) porRef[key] = {codigo:codigo, desc:desc, qtdPadrao:0, un:un};
+        porRef[key].qtdPadrao += Number(qtd)||0;
+      }
+    } else {
+      if(!porRef[key]) porRef[key] = {codigo:codigo, desc:desc, qtdPadrao:0, un:un};
+      porRef[key].qtdPadrao += Number(qtd)||0;
+    }
   }
-  return {rootRef:rootRef, rootDesc:rootDesc, rootCode:rootCode, porRef:porRef};
+  return {rootRef:rootRef, rootDesc:rootDesc, rootCode:rootCode, porRef:porRef, porCodigo:porCodigo, temValores:temValores};
 }
 function handleBomPadraoFile(file){
   file.arrayBuffer().then(function(buf){
@@ -652,7 +677,8 @@ function handleBomPadraoFile(file){
       _desatualizadoCache = null;
       var st = $('#bomPadraoStatus');
       st.style.display='inline-block';
-      st.textContent = 'BOM padrao: '+bom.rootDesc+' ('+Object.keys(bom.porRef).length+' componentes)';
+      st.textContent = 'BOM padrao: '+bom.rootDesc+(bom.temValores?' (c/ custo)':'');
+      st.title = Object.keys(bom.porRef).length+' componentes'+(bom.temValores?', '+Object.keys(bom.porCodigo).length+' conjuntos com custo padrao cadastrado':'');
       renderAll();
     }catch(e){
       alert('Erro ao carregar BOM padrao: '+e.message);
@@ -1450,7 +1476,7 @@ function renderMaterialContent(topList){
     ? 'Cod. '+htmlEscape(node.code)+(qtyTxt?' · '+htmlEscape(qtyTxt):'')+' · insumo direto da maquina (sem sub-estrutura)'
     : 'Cod. '+htmlEscape(node.code)+(qtyTxt?' · '+htmlEscape(qtyTxt)+' por maquina':'')+' · Seq.OP '+htmlEscape(node.seqOp)+' · '+t.count+' componente'+(t.count>1?'s':'')+'. Clique em um sub-conjunto para visualizar seus componentes por nivel.';
   content.innerHTML =
-    '<div class="material-detail-head"><h3 id="materialDetailTitle">'+htmlEscape(node.desc||node.code)+'</h3><span class="cost">'+fmt(t.total)+'</span></div>' +
+    '<div class="material-detail-head"><h3 id="materialDetailTitle">'+htmlEscape(node.desc||node.code)+'</h3><span class="cost">'+fmt(t.total)+(node.leaf?'':custoPadraoHtml(node.code, node.consumedQty!=null?node.consumedQty:1, t.total))+'</span></div>' +
     '<div class="subtle" style="margin-bottom:10px;">'+headMeta+'</div>' +
     (bomOk ? '<div class="subtle" style="margin-bottom:10px;">Comparado com BOM padrao: '+htmlEscape(BOM_PADRAO.rootDesc)+' — colunas "Padrao" e "Desvio" nos componentes-folha.</div>' : '') +
     (node.leaf ? '<div class="material-tree">'+renderMatLeaves([node], bomOk, excessoGlobalPorRef(node.op))+'</div>'
@@ -1473,6 +1499,18 @@ function fmtQty(v){
   var n = Number(v);
   if(isNaN(n)) return String(v);
   return (Math.abs(n-Math.round(n))<0.005) ? String(Math.round(n)) : n.toLocaleString('pt-BR',{maximumFractionDigits:2});
+}
+/* Custo padrao (SIGER) x custo real desta OP, para qualquer conjunto/CJ da arvore -
+   casado por Codigo do produto. So existe quando o BOM padrao carregado tem a variante
+   com valores (ver parseBomPadrao). Nao mexe no calculo do custo real, so exibe ao lado. */
+function custoPadraoHtml(code, qty, custoReal){
+  if(!BOM_PADRAO || !BOM_PADRAO.porCodigo) return '';
+  var p = BOM_PADRAO.porCodigo[code];
+  if(!p) return '';
+  var custoPadrao = p.custoUnitPadrao * (qty!=null ? qty : 1);
+  var diff = custoReal - custoPadrao;
+  var style = diff>0.5 ? 'color:var(--amber);' : (diff<-0.5 ? 'color:var(--green);' : 'color:var(--muted);');
+  return '<small style="display:block;font-weight:700;'+style+'" title="Custo padrao do SIGER (Listagem de Formulacoes com valores) para esta quantidade - comparado ao custo real registrado nesta OP">padrão '+fmt(custoPadrao)+(Math.abs(diff)>0.5?' ('+(diff>0?'+':'')+fmt(diff)+')':'')+'</small>';
 }
 function excessLineHtml(desc, un, qty, unitCost, cost){
   if(!(qty>0)) return '';
@@ -1506,7 +1544,7 @@ function renderMatTree(nodes, path, depth, bomOk, wrapLeaves, globalExc){
         '<span><span class="chevron" aria-hidden="true"></span><strong>'+htmlEscape(node.desc)+'</strong>'+qtyTag+loteBadge+
           '<small>Seq '+htmlEscape(node.seqOp)+' · '+leafCount+' componente'+(leafCount>1?'s':'')+'</small></span>' +
         '<span class="component-count">subtotal</span>' +
-        '<span class="tree-cost">'+fmt(total)+'</span>' +
+        '<span class="tree-cost">'+fmt(total)+custoPadraoHtml(node.code, node.consumedQty!=null?node.consumedQty:1, total)+'</span>' +
       '</button>' +
       '<div class="tree-body">'+renderMatTree(node.children, id, depth+1, bomOk, false, globalExc)+'</div>' +
     '</div>' + excessLineHtml(node.desc, node.consumedUn||node.un, node.excessQty, node.unitCost, node.excessCost);
