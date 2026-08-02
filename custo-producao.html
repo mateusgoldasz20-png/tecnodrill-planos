@@ -60,7 +60,13 @@
   .tab.active{background:#1a0507; color:var(--text); border-color:var(--red);}
   .tab.active::after{content:""; position:absolute; left:0; right:0; bottom:-1px; height:3px; background:var(--red);}
 
-  .cards{display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:30px;}
+  .cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:14px; margin-bottom:30px;}
+  .extra-apont-block{border:1px solid var(--line); background:var(--panel-2); padding:12px; border-radius:6px; margin-bottom:10px;}
+  .extra-apont-head{font-family:'Barlow Condensed',sans-serif; font-weight:700; letter-spacing:.03em; margin-bottom:8px;}
+  .extra-apont-add{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:10px;}
+  .extra-apont-pct{width:70px; background:#0f1115; border:1px solid var(--line); color:#fff; font-weight:700; padding:9px 8px; text-align:right;}
+  .extra-apont-entries{display:flex; flex-wrap:wrap; gap:0;}
+  .extra-apont-remove{border:0; background:transparent; color:var(--red-soft); cursor:pointer; margin-left:6px; font-size:13px; line-height:1;}
   .card{position:relative; overflow:hidden; border-radius:6px; background:linear-gradient(180deg,var(--panel-2),var(--panel)); border:1px solid var(--line); border-left:3px solid var(--red); padding:18px 18px 16px; min-height:96px;}
   .card::after{content:""; position:absolute; right:-22px; top:-18px; width:88px; height:88px; border:1px solid rgba(255,255,255,.06); transform:rotate(45deg);}
   .card .lbl{font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:0.07em; margin-bottom:8px;}
@@ -359,6 +365,13 @@
             <tfoot><tr><td>Total</td><td class="num" id="hoursTotalH"></td><td></td><td class="num" id="hoursTotalCost"></td></tr></tfoot>
           </table>
         </div>
+        <div class="panel" style="margin-top:14px;">
+          <div class="sec-head" style="margin-bottom:10px;">
+            <h2 style="font-size:18px;">Somar apontamento de outra OP</h2>
+            <div class="note">Traz só as horas por centro de custo de outra OP (rateadas por %) para dentro da OP selecionada — útil quando uma peça/CJ foi apontada em outra ordem mas pertence a esta.</div>
+          </div>
+          <div id="extraApontBlocks"></div>
+        </div>
       </section>
 
       <section id="materiais">
@@ -417,10 +430,17 @@
         </div>
         <div id="excedenteEmpty" class="subtle" style="padding:14px;" hidden></div>
         <div class="panel" id="excedentePanelWrap" hidden>
+          <div class="sec-head" style="margin-bottom:10px;">
+            <div class="note">Marque os itens que você confirma como excedente real de fato ocorrido. Só os marcados entram no card "Excedente Aprovado" do Custo Total.</div>
+            <div style="display:flex; gap:8px;">
+              <button class="btn secondary" id="excedenteMarcarAlta" type="button">Marcar todos "alta"</button>
+              <button class="btn secondary" id="excedenteDesmarcarTodos" type="button">Desmarcar todos</button>
+            </div>
+          </div>
           <div class="scroll-box" style="max-height:460px;">
             <table>
               <thead><tr>
-                <th>Código</th><th>Descrição</th><th class="num">Qtd. prevista</th><th class="num">Qtd. efetiva</th>
+                <th></th><th>Código</th><th>Descrição</th><th class="num">Qtd. prevista</th><th class="num">Qtd. efetiva</th>
                 <th class="num">Qtd. excedente</th><th class="num">Custo unit. material</th><th class="num">Custo unit. terceiro</th>
                 <th class="num">Valor adic. material</th><th class="num">Valor adic. terceiro</th><th class="num">Valor adic. total</th><th>Confiança</th>
               </tr></thead>
@@ -428,8 +448,9 @@
             </table>
           </div>
           <table style="margin-top:6px;"><tfoot>
-            <tr><td colspan="9">Total (todos os itens, qualquer confiança)</td><td class="num" id="excedenteTotal"></td><td></td></tr>
-            <tr><td colspan="9">Total (apenas confiança "alta")</td><td class="num" id="excedenteTotalAlta"></td><td></td></tr>
+            <tr><td colspan="10">Total (todos os itens, qualquer confiança)</td><td class="num" id="excedenteTotal"></td><td></td></tr>
+            <tr><td colspan="10">Total (apenas confiança "alta")</td><td class="num" id="excedenteTotalAlta"></td><td></td></tr>
+            <tr><td colspan="10"><b>Total aprovado (marcados acima — entra no Custo Total)</b></td><td class="num" id="excedenteTotalAprovado"><b></b></td><td></td></tr>
           </tfoot></table>
           <div class="subtle" style="margin-top:10px;">
             <b>Confiança:</b>
@@ -724,6 +745,20 @@ function bindCcHover(el, ref, op, isSub, label){
 function loadRates(){ try{ return JSON.parse(localStorage.getItem(RATE_STORAGE_KEY)||'{}'); }catch(e){ return {}; } }
 function saveRates(){ localStorage.setItem(RATE_STORAGE_KEY, JSON.stringify(rates)); }
 
+/* ================= APROVACAO DE EXCEDENTE =================
+   O excedente (aba "Excedente") e' so informativo por padrao - so entra no
+   Custo Total da OP depois que alguem revisa e marca a linha como confirmada.
+   Fica salvo no navegador (chave op+ref), sobrevive a recarregar a planilha. */
+var EXCEDENTE_STORAGE_KEY = 'tecnodrill_excedente_aprovado_v1';
+var excedenteAprovado = loadExcedenteAprovado();
+function loadExcedenteAprovado(){ try{ return JSON.parse(localStorage.getItem(EXCEDENTE_STORAGE_KEY)||'{}'); }catch(e){ return {}; } }
+function saveExcedenteAprovado(){ localStorage.setItem(EXCEDENTE_STORAGE_KEY, JSON.stringify(excedenteAprovado)); }
+function excedenteKey(op, ref){ return op+'|'+ref; }
+function excedenteAprovadoTotal(op){
+  if(!bomAplicavel(op)) return 0;
+  return analisaExcedente(op).reduce(function(s,l){ return s + (excedenteAprovado[excedenteKey(op,l.ref)] ? l.valorAdicionalTotal : 0); },0);
+}
+
 var $ = function(s){ return document.querySelector(s); };
 
 /* ================= CARREGAMENTO DO ARQUIVO ================= */
@@ -943,6 +978,25 @@ function horasPorCc(op){
     m[key] += r.horas;
   });
   return m;
+}
+/* ================= APONTAMENTO EXTRA DE OUTRA OP =================
+   Traz so as horas por CC de outra OP para dentro desta, rateadas por % - usado
+   quando uma peca/CJ foi apontada numa OP diferente mas pertence a esta (ex:
+   OP 8420 apontou tempo que na verdade e' parte da maquina da OP 8425). Nao mexe
+   em material/terceiros, so nas horas de mao de obra. Fica salvo no navegador. */
+var EXTRA_APONT_STORAGE_KEY = 'tecnodrill_extra_apontamento_v1';
+var extraApontamento = loadExtraApontamento();
+function loadExtraApontamento(){ try{ return JSON.parse(localStorage.getItem(EXTRA_APONT_STORAGE_KEY)||'{}'); }catch(e){ return {}; } }
+function saveExtraApontamento(){ localStorage.setItem(EXTRA_APONT_STORAGE_KEY, JSON.stringify(extraApontamento)); }
+function horasApontadasExtras(op){
+  var list = extraApontamento[op] || [];
+  var agg = {};
+  list.forEach(function(e){
+    var h = horasPorCc(e.op);
+    var frac = (e.pct||0)/100;
+    Object.keys(h).forEach(function(cc){ agg[cc] = (agg[cc]||0) + h[cc]*frac; });
+  });
+  return agg;
 }
 function moTotal(op){
   var h = horasPorCc(op);
@@ -1210,6 +1264,7 @@ function renderAll(){
   renderExecutiveBrief();
   renderCostAnalysis();
   renderHours();
+  renderExtraApontamento();
   renderMaterialSubtabs();
   renderTerc();
   renderExcedente();
@@ -1218,15 +1273,19 @@ function renderAll(){
 }
 function totalsForView(){
   var ops = opsInView();
-  var mp=0, terc=0, mo=0;
-  ops.forEach(function(op){ mp += materialTotal(op); terc += tercTotal(op); });
+  var mp=0, terc=0, mo=0, exced=0;
+  ops.forEach(function(op){ mp += materialTotal(op); terc += tercTotal(op); exced += excedenteAprovadoTotal(op); });
   var horasAgg = {};
   ops.forEach(function(op){
     var h = horasPorCc(op);
     Object.entries(h).forEach(function(e){ horasAgg[e[0]] = (horasAgg[e[0]]||0) + e[1]; });
   });
+  ops.forEach(function(op){
+    var h = horasApontadasExtras(op);
+    Object.entries(h).forEach(function(e){ horasAgg[e[0]] = (horasAgg[e[0]]||0) + e[1]; });
+  });
   mo = Object.entries(horasAgg).reduce(function(s,e){ return s + e[1]*(rates[e[0]]||0); },0);
-  return {mp:mp, terc:terc, mo:mo, total:mp+terc+mo, horas:horasAgg};
+  return {mp:mp, terc:terc, mo:mo, exced:exced, total:mp+terc+mo+exced, horas:horasAgg};
 }
 function rateStats(){
   var ccs = allCcNames();
@@ -1239,6 +1298,7 @@ function renderCards(){
   $('#cardsRow').innerHTML =
     '<div class="card"><div class="lbl">Matéria-Prima</div><div class="val">'+fmt(t.mp)+'</div></div>' +
     '<div class="card"><div class="lbl">Terceiros</div><div class="val">'+fmt(t.terc)+'</div></div>' +
+    (t.exced>0 ? '<div class="card"><div class="lbl">Excedente Aprovado</div><div class="val">'+fmt(t.exced)+'</div></div>' : '') +
     '<div class="card"><div class="lbl">Mão de Obra '+(moDefined?'':'<span class="pill" style="margin-left:6px;">preencher R$/h</span>')+'</div><div class="val '+(moDefined?'':'pending')+'">'+(moDefined?fmt(t.mo):'defina o R$/h')+'</div></div>' +
     '<div class="card total"><div class="lbl">Custo Total</div><div class="val '+(moDefined?'':'pending')+'">'+(moDefined?fmt(t.total):'defina o R$/h')+'</div></div>';
 }
@@ -1294,6 +1354,51 @@ function renderHours(){
       rates[cc] = isNaN(v) ? 0 : v;
       saveRates();
       renderAll();
+    });
+  });
+}
+function renderExtraApontamento(){
+  var wrap = $('#extraApontBlocks');
+  var ops = opsInView();
+  wrap.innerHTML = ops.map(function(op){
+    var list = extraApontamento[op] || [];
+    var entriesHtml = list.length ? list.map(function(e,i){
+      return '<span class="pill op" style="margin:0 6px 6px 0;">OP '+htmlEscape(e.op)+' · '+e.pct+'%<button class="extra-apont-remove" data-i="'+i+'" type="button">×</button></span>';
+    }).join('') : '<span class="subtle">Nenhuma OP extra somada.</span>';
+    return '<div class="extra-apont-block" data-op="'+htmlEscape(op)+'">' +
+      '<div class="extra-apont-head">OP '+htmlEscape(op)+'</div>' +
+      '<div class="extra-apont-add">' +
+        '<div class="op-picker" style="min-width:200px;"><input type="text" class="extra-apont-search" placeholder="Buscar OP para somar..."><div class="op-picker-list"></div></div>' +
+        '<input type="number" class="extra-apont-pct" min="0" max="100" step="1" value="100">' +
+        '<span class="subtle">%</span>' +
+        '<button class="btn secondary extra-apont-add-btn" type="button">Adicionar</button>' +
+      '</div>' +
+      '<div class="extra-apont-entries">'+entriesHtml+'</div>' +
+    '</div>';
+  }).join('') || '<div class="subtle">Selecione uma OP para gerenciar apontamentos extras.</div>';
+  wrap.querySelectorAll('.extra-apont-block').forEach(function(block){
+    var op = block.dataset.op;
+    var searchInput = block.querySelector('.extra-apont-search');
+    var listEl = block.querySelector('.op-picker-list');
+    bindOpPickerEls(searchInput, listEl, function(pickedOp){ searchInput.value = pickedOp; });
+    block.querySelector('.extra-apont-add-btn').addEventListener('click', function(){
+      var pickedOp = searchInput.value.trim();
+      var pct = parseFloat(block.querySelector('.extra-apont-pct').value);
+      if(isNaN(pct)) pct = 100;
+      if(!pickedOp){ alert('Escolha uma OP para somar.'); return; }
+      if(pickedOp===op){ alert('Nao e possivel somar a OP nela mesma.'); return; }
+      if(!OPS.some(function(o){ return o.op===pickedOp; })){ alert('OP nao encontrada na planilha carregada.'); return; }
+      extraApontamento[op] = extraApontamento[op] || [];
+      extraApontamento[op].push({op:pickedOp, pct:pct});
+      saveExtraApontamento();
+      renderAll();
+    });
+    block.querySelectorAll('.extra-apont-remove').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        extraApontamento[op].splice(+btn.dataset.i,1);
+        saveExtraApontamento();
+        renderAll();
+      });
     });
   });
 }
@@ -1536,7 +1641,9 @@ function renderExcedente(){
   $('#excedenteBody').innerHTML = linhas.map(function(l){
     var multiOp = opsComBom.length>1 ? (' · OP '+htmlEscape(l.op)) : '';
     var servCell = l.processo ? (fmt(l.unitCostServ)+'<div class="subtle">'+htmlEscape(l.processo)+' · '+htmlEscape(l.origem)+'</div>') : '—';
-    return '<tr><td>'+htmlEscape(l.codigo)+'<div class="subtle">'+htmlEscape(l.ref)+multiOp+'</div></td>' +
+    var checked = excedenteAprovado[excedenteKey(l.op,l.ref)] ? ' checked' : '';
+    return '<tr><td><input type="checkbox" class="excedente-check" data-op="'+htmlEscape(l.op)+'" data-ref="'+htmlEscape(l.ref)+'"'+checked+'></td>' +
+      '<td>'+htmlEscape(l.codigo)+'<div class="subtle">'+htmlEscape(l.ref)+multiOp+'</div></td>' +
       '<td>'+htmlEscape(l.descricao)+'</td>' +
       '<td class="num">'+l.qtdPrevista+'</td>' +
       '<td class="num">'+l.qtdEfetiva+'</td>' +
@@ -1548,11 +1655,31 @@ function renderExcedente(){
       '<td class="num" style="font-weight:800;">'+fmt(l.valorAdicionalTotal)+'</td>' +
       '<td title="'+htmlEscape(l.confiancaMotivo)+'">'+(confLabel[l.confianca]||'')+'</td>' +
       '</tr>';
-  }).join('') || '<tr><td colspan="11" class="subtle">Nenhum componente com consumo acima do previsto no BOM.</td></tr>';
+  }).join('') || '<tr><td colspan="12" class="subtle">Nenhum componente com consumo acima do previsto no BOM.</td></tr>';
   var totalTudo = linhas.reduce(function(s,l){ return s+l.valorAdicionalTotal; },0);
   var totalAlta = linhas.filter(function(l){ return l.confianca==='alta'; }).reduce(function(s,l){ return s+l.valorAdicionalTotal; },0);
+  var totalAprovado = linhas.filter(function(l){ return excedenteAprovado[excedenteKey(l.op,l.ref)]; }).reduce(function(s,l){ return s+l.valorAdicionalTotal; },0);
   $('#excedenteTotal').textContent = fmt(totalTudo);
   $('#excedenteTotalAlta').textContent = fmt(totalAlta);
+  $('#excedenteTotalAprovado').textContent = fmt(totalAprovado);
+  $('#excedenteBody').querySelectorAll('.excedente-check').forEach(function(chk){
+    chk.addEventListener('change', function(){
+      var key = excedenteKey(chk.dataset.op, chk.dataset.ref);
+      if(chk.checked) excedenteAprovado[key] = true; else delete excedenteAprovado[key];
+      saveExcedenteAprovado();
+      renderAll();
+    });
+  });
+  $('#excedenteMarcarAlta').onclick = function(){
+    linhas.forEach(function(l){ if(l.confianca==='alta') excedenteAprovado[excedenteKey(l.op,l.ref)] = true; });
+    saveExcedenteAprovado();
+    renderAll();
+  };
+  $('#excedenteDesmarcarTodos').onclick = function(){
+    linhas.forEach(function(l){ delete excedenteAprovado[excedenteKey(l.op,l.ref)]; });
+    saveExcedenteAprovado();
+    renderAll();
+  };
 }
 
 /* ================= COMPARATIVO ================= */
@@ -1610,8 +1737,7 @@ function renderCompareSection(){
 }
 
 /* ================= BUSCA DE OP ================= */
-function setupOpPicker(inputSel, listSel, onPick){
-  var input = $(inputSel), list = $(listSel);
+function bindOpPickerEls(input, list, onPick){
   function renderList(term){
     var t = (term||'').trim().toLowerCase();
     var items = OPS.filter(function(o){ return !t || String(o.op).includes(t) || String(o.desc).toLowerCase().includes(t); }).slice(0,40);
@@ -1625,6 +1751,9 @@ function setupOpPicker(inputSel, listSel, onPick){
   input.addEventListener('focus', function(){ renderList(input.value); list.classList.add('open'); });
   input.addEventListener('input', function(){ renderList(input.value); list.classList.add('open'); });
   input.addEventListener('blur', function(){ setTimeout(function(){ list.classList.remove('open'); },120); });
+}
+function setupOpPicker(inputSel, listSel, onPick){
+  bindOpPickerEls($(inputSel), $(listSel), onPick);
 }
 
 /* ================= EXPORTACAO ================= */
