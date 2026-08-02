@@ -1363,7 +1363,9 @@ function renderExtraApontamento(){
   wrap.innerHTML = ops.map(function(op){
     var list = extraApontamento[op] || [];
     var entriesHtml = list.length ? list.map(function(e,i){
-      return '<span class="pill op" style="margin:0 6px 6px 0;">OP '+htmlEscape(e.op)+' · '+e.pct+'%<button class="extra-apont-remove" data-i="'+i+'" type="button">×</button></span>';
+      var horasOrigem = Object.values(horasPorCc(e.op)).reduce(function(s,h){ return s+h; },0);
+      var horasSomadas = horasOrigem*((e.pct||0)/100);
+      return '<span class="pill op" style="margin:0 6px 6px 0;" title="OP '+htmlEscape(e.op)+' tem '+horasOrigem.toFixed(2)+' h no total; '+e.pct+'% disso = '+horasSomadas.toFixed(2)+' h somadas aqui">OP '+htmlEscape(e.op)+' · '+e.pct+'% · '+horasSomadas.toFixed(2)+' h<button class="extra-apont-remove" data-i="'+i+'" type="button">×</button></span>';
     }).join('') : '<span class="subtle">Nenhuma OP extra somada.</span>';
     return '<div class="extra-apont-block" data-op="'+htmlEscape(op)+'">' +
       '<div class="extra-apont-head">OP '+htmlEscape(op)+'</div>' +
