@@ -1764,6 +1764,7 @@ function exportCsv(){
   lines.push(['Categoria','Descricao','Valor'].join(';'));
   lines.push(['Materia-prima','Total',t.mp.toFixed(2)].join(';'));
   lines.push(['Terceiros','Total',t.terc.toFixed(2)].join(';'));
+  if(t.exced>0) lines.push(['Excedente aprovado','Total',t.exced.toFixed(2)].join(';'));
   lines.push(['Mao de obra','Total',t.mo.toFixed(2)].join(';'));
   lines.push(['Custo Total','',t.total.toFixed(2)].join(';'));
   lines.push([]);
@@ -1778,17 +1779,47 @@ function exportCsv(){
   a.click();
   URL.revokeObjectURL(url);
 }
+/* Relatorio objetivo: totais dos cards (iguais ao Resumo Executivo, incluindo
+   excedente aprovado quando houver) + horas por CC (justifica o custo de mao de
+   obra) + um resumo curto do excedente de consumo vs BOM padrao, se aplicavel.
+   Nao repete o detalhe bruto de terceiros por remessa (esses valores nao batem
+   com o total rateado do card - ficam so na aba Terceiros do proprio app, para
+   auditoria, sem confundir num relatorio de resumo). */
 function exportPdf(){
   var t = totalsForView();
+  var moDefined = Object.values(rates).some(function(r){ return r>0; });
   var hourRows = Object.entries(t.horas).sort(function(a,b){return b[1]-a[1];}).map(function(e){
     var rate = rates[e[0]]||0;
     return '<tr><td>'+htmlEscape(e[0])+'</td><td>'+e[1].toFixed(2)+' h</td><td>'+(rate>0?fmt(rate):'A preencher')+'</td><td>'+fmt(e[1]*rate)+'</td></tr>';
   }).join('');
-  var tercRows = [];
-  opsInView().forEach(function(op){ tercRows = tercRows.concat(tercRowsForOp(op)); });
-  var tercHtml = tercRows.map(function(r){ return '<tr><td>'+htmlEscape(r.desc)+'</td><td>'+htmlEscape(r.ccDesc)+'</td><td>'+fmt(r.valor)+'</td></tr>'; }).join('');
+  var ops = opsInView();
+  var opsComBom = ops.filter(function(op){ return bomAplicavel(op); });
+  var excLinhas = [];
+  opsComBom.forEach(function(op){ excLinhas = excLinhas.concat(analisaExcedente(op)); });
+  excLinhas.sort(function(a,b){ return b.valorAdicionalTotal-a.valorAdicionalTotal; });
+  var excTotalTudo = excLinhas.reduce(function(s,l){ return s+l.valorAdicionalTotal; },0);
+  var confLabelPdf = {alta:'Alta', revisar:'Revisar', suspeita:'Suspeita'};
+  var excRows = excLinhas.map(function(l){
+    var aprovado = excedenteAprovado[excedenteKey(l.op,l.ref)];
+    return '<tr><td>'+htmlEscape(l.codigo)+'</td><td>'+htmlEscape(l.descricao)+'</td>'+
+      '<td>+'+l.qtdExcedente.toFixed(2)+(l.un?(' '+htmlEscape(l.un)):'')+'</td>'+
+      '<td>'+fmt(l.valorAdicionalTotal)+'</td>'+
+      '<td>'+(confLabelPdf[l.confianca]||'')+'</td>'+
+      '<td>'+(aprovado?'Sim':'Nao')+'</td></tr>';
+  }).join('');
+  var excSection = !opsComBom.length ? '' : '<div class="section"><h2>Excedente de consumo (vs BOM padrao)</h2>' +
+    (excLinhas.length ?
+      '<div class="note">Total identificado: '+fmt(excTotalTudo)+' &nbsp;|&nbsp; Total aprovado (ja somado ao Custo Total acima): '+fmt(t.exced)+'</div>' +
+      '<table><thead><tr><th>Codigo</th><th>Descricao</th><th>Qtd. excedente</th><th>Valor adicional</th><th>Confianca</th><th>Aprovado?</th></tr></thead><tbody>'+excRows+'</tbody></table>'
+      : '<div class="note">Nenhum componente com consumo acima do previsto no BOM padrao carregado.</div>') +
+    '</div>';
   var titulo = opB ? ('OP '+opA+' x OP '+opB) : ('OP '+opA);
-  var report = '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Custo '+htmlEscape(titulo)+'</title><style>@page{size:A4 landscape;margin:12mm}*{box-sizing:border-box}body{margin:0;background:#fff;color:#15171d;font-family:Arial,Helvetica,sans-serif;font-size:11px}h2{margin:0;text-transform:uppercase}.header{background:linear-gradient(135deg,#16191f,#27060a);color:#fff;padding:18px 22px;border-top:5px solid #e8000d;display:flex;justify-content:space-between;align-items:center}.brand{font-size:28px;font-weight:800}.meta{text-align:right;line-height:1.5;color:#d7dce6}.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px}.card{border-left:4px solid #e8000d;background:#f3f5f8;padding:12px;min-height:74px}.card .k{color:#5b6472;text-transform:uppercase;font-size:10px;font-weight:700}.card .v{margin-top:8px;font-size:20px;font-weight:800}.card.total{background:#2a080b;color:#fff}.card.total .v{color:#ff2733}.section{margin-top:14px}table{width:100%;border-collapse:collapse;margin-top:8px}th{background:#111318;color:#fff;text-align:left;padding:7px;font-size:10px;text-transform:uppercase}td{border:1px solid #d8dde5;padding:6px 7px;vertical-align:top}tbody tr:nth-child(even) td{background:#f7f8fa}.no-print{position:fixed;right:16px;top:16px;z-index:2;padding:10px 14px;background:#e8000d;color:white;border:0;font-weight:700}@media print{.no-print{display:none}}</style></head><body><button class="no-print" onclick="window.print()">Salvar PDF</button><div class="header"><div><div class="brand">TECNODRILL</div><div>Custo de producao - '+htmlEscape(titulo)+'</div></div><div class="meta"><b>'+htmlEscape(titulo)+'</b><br>Materia-prima . Mao de obra . Terceiros<br>Relatorio executivo</div></div><div class="cards"><div class="card"><div class="k">Materia-prima</div><div class="v">'+fmt(t.mp)+'</div></div><div class="card"><div class="k">Terceiros</div><div class="v">'+fmt(t.terc)+'</div></div><div class="card"><div class="k">Mao de obra</div><div class="v">'+fmt(t.mo)+'</div></div><div class="card total"><div class="k">Custo total</div><div class="v">'+fmt(t.total)+'</div></div></div><div class="section"><h2>Mao de obra por centro de custo</h2><table><thead><tr><th>Centro de custo</th><th>Horas</th><th>R$/h</th><th>Custo</th></tr></thead><tbody>'+hourRows+'</tbody></table></div><div class="section"><h2>Terceiros</h2><table><thead><tr><th>Item</th><th>Processo</th><th>Custo</th></tr></thead><tbody>'+tercHtml+'</tbody></table></div></body></html>';
+  var cardsHtml = '<div class="card"><div class="k">Materia-prima</div><div class="v">'+fmt(t.mp)+'</div></div>' +
+    '<div class="card"><div class="k">Terceiros</div><div class="v">'+fmt(t.terc)+'</div></div>' +
+    (t.exced>0 ? '<div class="card"><div class="k">Excedente aprovado</div><div class="v">'+fmt(t.exced)+'</div></div>' : '') +
+    '<div class="card"><div class="k">Mao de obra</div><div class="v">'+(moDefined?fmt(t.mo):'Pendente')+'</div></div>' +
+    '<div class="card total"><div class="k">Custo total</div><div class="v">'+(moDefined?fmt(t.total):'Aguardando R$/h')+'</div></div>';
+  var report = '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Custo '+htmlEscape(titulo)+'</title><style>@page{size:A4 landscape;margin:12mm}*{box-sizing:border-box}body{margin:0;background:#fff;color:#15171d;font-family:Arial,Helvetica,sans-serif;font-size:11px}h2{margin:0;text-transform:uppercase}.header{background:linear-gradient(135deg,#16191f,#27060a);color:#fff;padding:18px 22px;border-top:5px solid #e8000d;display:flex;justify-content:space-between;align-items:center}.brand{font-size:28px;font-weight:800}.meta{text-align:right;line-height:1.5;color:#d7dce6}.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:14px}.card{border-left:4px solid #e8000d;background:#f3f5f8;padding:12px;min-height:74px}.card .k{color:#5b6472;text-transform:uppercase;font-size:10px;font-weight:700}.card .v{margin-top:8px;font-size:20px;font-weight:800}.card.total{background:#2a080b;color:#fff}.card.total .v{color:#ff2733}.section{margin-top:14px}.note{color:#5b6472;font-size:10.5px;margin-top:4px}table{width:100%;border-collapse:collapse;margin-top:8px}th{background:#111318;color:#fff;text-align:left;padding:7px;font-size:10px;text-transform:uppercase}td{border:1px solid #d8dde5;padding:6px 7px;vertical-align:top}tbody tr:nth-child(even) td{background:#f7f8fa}.no-print{position:fixed;right:16px;top:16px;z-index:2;padding:10px 14px;background:#e8000d;color:white;border:0;font-weight:700}@media print{.no-print{display:none}}</style></head><body><button class="no-print" onclick="window.print()">Salvar PDF</button><div class="header"><div><div class="brand">TECNODRILL</div><div>Custo de producao - '+htmlEscape(titulo)+'</div></div><div class="meta"><b>'+htmlEscape(titulo)+'</b><br>Materia-prima . Mao de obra . Terceiros<br>Relatorio executivo</div></div><div class="cards">'+cardsHtml+'</div><div class="section"><h2>Mao de obra por centro de custo</h2><table><thead><tr><th>Centro de custo</th><th>Horas</th><th>R$/h</th><th>Custo</th></tr></thead><tbody>'+hourRows+'</tbody></table></div>'+excSection+'</body></html>';
   var url = URL.createObjectURL(new Blob([report], {type:'text/html;charset=utf-8'}));
   var win = window.open(url, '_blank');
   if(!win){ var a=document.createElement('a'); a.href=url; a.download='custo_'+titulo.replace(/\s+/g,'_')+'.html'; a.click(); }
