@@ -413,6 +413,143 @@ function deriveOcFromPur(rows) {
     };
   });
 }
+/* ========= IMPORTACAO A PARTIR DO RELATORIO PCP MESTRE (SIGER) =========
+   O export "RELATORIOS PCP.xlsx" traz varias OPs de uma vez, em abas
+   diferentes da exportacao de Estrutura por OP usada ate aqui. Esta funcao
+   reconstroi, para CADA OP presente no arquivo, o mesmo formato de linhas
+   que parseStructure() gera a partir do export antigo - preservando a
+   arvore Seq.OP x Origem Seq. (CJs pai/filho) usada na explosao do BOM -
+   so que com dados mais completos: custo/qtd efetivos e a situacao real
+   Sim/Nao de cada centro de custo, vinda da aba "CC PEND VS CONCL", ao
+   inves do texto solto que a exportacao antiga trazia. */
+function posicaoFromDescrPos(v) {
+  var s=String(v||"").trim();
+  if(/^n[aã]o\s*programada/i.test(s)) return "1 - "+s;
+  if(/^totalmente programada/i.test(s)) return "3 - "+s;
+  if(/^em produ/i.test(s)) return "4 - "+s;
+  return s; /* "Encerrada" ja e reconhecida pelo texto (contem "encerr") */
+}
+function parseRelatoriosWorkbook(buf) {
+  var wb=XLSX.read(buf,{type:"array",cellDates:false});
+  if(wb.SheetNames.indexOf("ITENS OP CUSTO")<0){
+    throw new Error("Este arquivo nao parece ser o Relatorio PCP (aba \"ITENS OP CUSTO\" nao encontrada). Colunas encontradas: "+wb.SheetNames.join(", "));
+  }
+  var itensRows=XLSX.utils.sheet_to_json(wb.Sheets["ITENS OP CUSTO"],{header:1,raw:true,defval:""});
+  var ccRows=wb.SheetNames.indexOf("CC PEND VS CONCL")>=0?XLSX.utils.sheet_to_json(wb.Sheets["CC PEND VS CONCL"],{header:1,raw:true,defval:""}):[];
+  if(!itensRows.length) throw new Error("Aba \"ITENS OP CUSTO\" vazia.");
+
+  var cm=buildIdx(itensRows[0]);
+  var iOp=findI(cm,"op"), iSeq=findI(cm,"seq.op","seqop"), iOrig=findI(cm,"origem seq.","origemseq","origem seq"),
+      iPos=findI(cm,"descr.pos.op","descrposop"), iPCode=findI(cm,"produto"), iPRef=findI(cm,"ref produto","refproduto"),
+      iPDesc=findI(cm,"desc.prod","descprod"), iPUn=findI(cm,"un"), iQtdProd=findI(cm,"qtd.produzir","qtdproduzir"),
+      iICode=findI(cm,"cod.prod.item","codproditem"), iIDesc=findI(cm,"desc.item","descitem"),
+      iIRef=findI(cm,"ref item","refitem");
+  requireCols(cm,"RELATORIO PCP (aba ITENS OP CUSTO)",[
+    {nome:"OP",alias:["op"]}, {nome:"Seq.OP",alias:["seq.op","seqop"]}, {nome:"Produto",alias:["produto"]}
+  ]);
+  /* "UN" aparece 2x no cabecalho (produto e item); a 2a ocorrencia e a do item */
+  var unIdxs=[]; itensRows[0].forEach(function(h,i){ if(normCol(h)==="un") unIdxs.push(i); });
+  var iIUn=unIdxs.length>1?unIdxs[1]:iPUn;
+  if(unIdxs.length>0) iPUn=unIdxs[0];
+
+  var cmCC=ccRows.length?buildIdx(ccRows[0]):{};
+  var iCcOp=findI(cmCC,"op"), iCcSeq=findI(cmCC,"seq.op","seqop"),
+      iCcDesc=findI(cmCC,"desc cc","desccc"), iCcEnc=findI(cmCC,"encerrado?","encerrado");
+
+  /* mapa "OP|Seq.OP" -> lista de {ccDesc, encerrado} */
+  var pendMap={};
+  for(var i1=1;i1<ccRows.length;i1++){
+    var rc=ccRows[i1]; var opc=String(rc[iCcOp]||"").trim();
+    if(!opc) continue;
+    var seqc=String(rc[iCcSeq]!==undefined&&rc[iCcSeq]!==""?rc[iCcSeq]:"0").trim();
+    var keyc=opc+"|"+seqc;
+    if(!pendMap[keyc]) pendMap[keyc]=[];
+    pendMap[keyc].push({ccDesc:String(rc[iCcDesc]||"").trim(), encerrado:String(rc[iCcEnc]||"").trim()});
+  }
+  function pendentesTexto(op,seq){
+    var lst=pendMap[op+"|"+seq];
+    if(!lst) return "";
+    var seen={};
+    return lst.filter(function(c){return c.encerrado.toLowerCase()!=="sim";})
+      .map(function(c){return c.ccDesc;})
+      .filter(function(c){if(!c||seen[c])return false;seen[c]=1;return true;})
+      .join(" / ");
+  }
+
+  /* agrupa ITENS OP CUSTO por OP -> por Seq.OP (posicao), guardando tambem
+     quais codigos de produto tem posicao propria nesta OP (ja "explodidos"
+     em outra linha da arvore - subconjuntos e pecas fabricadas) */
+  var byOp={};
+  for(var i2=1;i2<itensRows.length;i2++){
+    var r=itensRows[i2];
+    var op=String(r[iOp]||"").trim();
+    if(!op) continue;
+    if(!byOp[op]) byOp[op]={positions:{},hasOwnPosition:{}};
+    var opData=byOp[op];
+    var seqRaw=String(r[iSeq]!==undefined&&r[iSeq]!==""?r[iSeq]:"0").trim();
+    if(!opData.positions[seqRaw]){
+      opData.positions[seqRaw]={
+        origemRaw:String(r[iOrig]!==undefined&&r[iOrig]!==""?r[iOrig]:"0").trim(),
+        code:r[iPCode], ref:String(r[iPRef]||"").trim(), desc:String(r[iPDesc]||"").trim(),
+        un:String(r[iPUn]||"").trim(), qtdProduzir:normNum(r[iQtdProd]), descrPos:String(r[iPos]||"").trim(),
+        itens:[]
+      };
+    }
+    if(r[iPCode]!==undefined && r[iPCode]!=="") opData.hasOwnPosition[String(r[iPCode])]=true;
+    var itemCode=r[iICode];
+    if(itemCode!==undefined && itemCode!==""){
+      opData.positions[seqRaw].itens.push({code:String(itemCode), ref:String(r[iIRef]||"").trim(), desc:String(r[iIDesc]||"").trim(), un:String(r[iIUn]||"").trim()});
+    }
+  }
+
+  var opsOut={};
+  Object.keys(byOp).forEach(function(op){
+    var opData=byOp[op];
+    var positions=opData.positions, hasOwnPosition=opData.hasOwnPosition;
+    var parsed=[];
+    function nulSeq(rawVal){ return (rawVal===""||rawVal==="0")?null:(Number(rawVal)||null); }
+    Object.keys(positions).forEach(function(seqRaw){
+      var pos=positions[seqRaw];
+      var seqOp=nulSeq(seqRaw);
+      var origemSequencia=nulSeq(pos.origemRaw);
+      var tipoRef=seqOp===null?"projeto":classifyRef(pos.ref);
+      var posTxt=posicaoFromDescrPos(pos.descrPos);
+      var pendTxt=pendentesTexto(op,seqRaw);
+      /* linha da propria posicao (uma unica por Seq.OP - preserva CJs pai/filho
+         para a explosao do BOM exatamente como a exportacao antiga) */
+      parsed.push({nroOp:op,seqOp:seqOp,origemSequencia:origemSequencia,qtdOp:pos.qtdProduzir,unidade:pos.un,
+        produto:pos.code,referencia:pos.ref,descricao:pos.desc,ccAndamento:pendTxt,centrosCustoPendentes:pendTxt,
+        refInsumo:"",descInsumo:"",unidadeInsumo:"",posicao:posTxt,tipoReferencia:tipoRef,tipoInsumo:"outro",
+        conjuntoPaiSeq:null,conjuntoPaiDescricao:null,estruturaRaizSeq:null,estruturaRaizDescricao:null});
+      /* itens consumidos que NAO tem posicao propria nesta OP viram folhas
+         (materia-prima, pecas compradas prontas etc.), ligadas via Origem Seq.
+         a posicao que as consome. Itens que JA tem posicao propria (subconjuntos,
+         pecas fabricadas) nao geram linha extra aqui - a propria linha de
+         posicao deles (com a Origem Seq. nativa do SIGER) ja faz esse vinculo. */
+      var seen={};
+      pos.itens.forEach(function(it){
+        if(hasOwnPosition[it.code]) return;
+        var dedupeKey=it.code+"|"+it.ref;
+        if(seen[dedupeKey]) return; seen[dedupeKey]=1;
+        var leafRef=it.ref||it.code;
+        parsed.push({nroOp:op,seqOp:"ins_"+it.code+"@"+seqRaw,origemSequencia:seqOp,qtdOp:0,unidade:it.un,
+          produto:it.code,referencia:leafRef,descricao:it.desc,ccAndamento:"",centrosCustoPendentes:"",
+          refInsumo:leafRef,descInsumo:it.desc,unidadeInsumo:it.un,posicao:posTxt,tipoReferencia:classifyRef(leafRef),
+          tipoInsumo:isSupply(leafRef)?"suprimento":"outro",conjuntoPaiSeq:null,conjuntoPaiDescricao:null,
+          estruturaRaizSeq:null,estruturaRaizDescricao:null});
+      });
+    });
+    var rows=enrichRows(parsed);
+    var proj=rows.find(function(r){return r.tipoReferencia==="projeto";});
+    opsOut[op]={opId:op,name:proj?(proj.descricao||String(proj.produto)||("OP "+op)):("OP "+op),rows:rows,totalItens:rows.length};
+  });
+  return opsOut;
+}
+function relOpsListFrom(opsOut) {
+  return Object.keys(opsOut).map(function(id){
+    return {opId:id,name:opsOut[id].name,totalItens:opsOut[id].totalItens};
+  }).sort(function(a,b){ return (Number(b.opId)||0)-(Number(a.opId)||0); });
+}
 /* INTEGRACAO E CALCULOS */
 function integrate(str,ocs) {
   var idx={};
@@ -995,6 +1132,23 @@ function AppProvider(props) {
     fbSaveMeta({opsMeta:opsMeta});
   }
 
+  // Registra/atualiza uma OP no mapa app.ops - usado tanto pelo upload de
+  // Estrutura por OP quanto pela adicao de uma OP a partir do Relatorio PCP.
+  var registerOp=useCallback(function(opId,opName,rows,fileLabel,opts){
+    opts=opts||{};
+    opId=String(opId);
+    var projData={nome:opName,nroOp:opId};
+    setOps(function(o){
+      var n=Object.assign({},o);
+      n[opId]={opId:opId,name:opName,file:fileLabel,rows:rows,proj:projData,_src:opts.src||"arquivo"};
+      if(!opts.skipPush) pushOpsToFirebase(n);
+      return n;
+    });
+    setActiveOpId(opId);
+    setStrRows(rows); setStrFile(fileLabel);
+    setProj(projData); setUpdated(new Date()); setLoading(false);
+  },[]);
+
   var loadStr=useCallback(function(file,opts){
     opts=opts||{};
     setLoading(true); setErr(null);
@@ -1003,17 +1157,7 @@ function AppProvider(props) {
       var p=rows.find(function(r){return r.tipoReferencia==="projeto";});
       var opId=p?(p.nroOp||p.produto||file.name):file.name;
       var opName=p?(p.descricao||p.produto||file.name):file.name;
-      var projData={nome:opName,nroOp:String(opId)};
-      // Adicionar/atualizar no mapa de OPs
-      setOps(function(o){
-        var n=Object.assign({},o);
-        n[opId]={opId:String(opId),name:opName,file:file.name,rows:rows,proj:projData};
-        if(!opts.skipPush) pushOpsToFirebase(n);
-        return n;
-      });
-      setActiveOpId(String(opId));
-      setStrRows(rows); setStrFile(file.name);
-      setProj(projData); setUpdated(new Date()); setLoading(false);
+      registerOp(opId,opName,rows,file.name,opts);
       idbSave("op-"+opId,file); // salvar por OP
     }
     if(isX){
@@ -1025,7 +1169,39 @@ function AppProvider(props) {
         onRows(parseStructure(text,false));
       }).catch(function(e){ setErr("Erro estrutura: "+e.message); setLoading(false); });
     }
+  },[registerOp]);
+
+  // Relatorio PCP mestre (varias OPs no mesmo arquivo, abas ITENS OP CUSTO / CC PEND VS CONCL):
+  // faz o parse uma vez e guarda em cache; cada OP e adicionada ao mapa app.ops sob demanda,
+  // mantendo o mesmo fluxo "uma OP por vez" ja usado no resto do sistema.
+  var relCacheRef=useRef(null);
+  var _relSrc=useState(null), relSrc=_relSrc[0], setRelSrc=_relSrc[1];
+  var loadRelatorios=useCallback(function(file,opts){
+    opts=opts||{};
+    setLoading(true); setErr(null);
+    file.arrayBuffer().then(function(buf){
+      try{
+        var opsOut=parseRelatoriosWorkbook(new Uint8Array(buf));
+        relCacheRef.current=opsOut;
+        setRelSrc({fileName:file.name,count:Object.keys(opsOut).length,list:relOpsListFrom(opsOut)});
+        setLoading(false);
+        if(!opts.skipSave) idbSave("relatorios-master",file);
+      }catch(e){ setErr("Erro Relatorio PCP: "+e.message); setLoading(false); }
+    }).catch(function(e){ setErr("Erro Relatorio PCP: "+e.message); setLoading(false); });
   },[]);
+  var addOpFromRelatorios=useCallback(function(opId,opts){
+    opts=opts||{};
+    var cache=relCacheRef.current;
+    if(!cache||!cache[opId]) return;
+    var op=cache[opId];
+    registerOp(op.opId,op.name,op.rows,(relSrc?relSrc.fileName:"Relatorio PCP")+" (OP "+op.opId+")",{src:"relatorios",skipPush:opts.skipPush});
+    if(!opts.skipPersist){
+      idbLoadSetting("relatoriosOpIds",function(saved){
+        var list=Array.isArray(saved)?saved.slice():[];
+        if(list.indexOf(String(opId))<0){ list.push(String(opId)); idbSaveSetting("relatoriosOpIds",list); }
+      });
+    }
+  },[registerOp,relSrc]);
 
   var loadPur=useCallback(function(file,opts){
     opts=opts||{};
@@ -1119,6 +1295,11 @@ function AppProvider(props) {
       return n;
     });
     idbDeleteFileKey("op-"+opId);
+    idbLoadSetting("relatoriosOpIds",function(saved){
+      if(!Array.isArray(saved)||!saved.length) return;
+      var list=saved.filter(function(id){return String(id)!==String(opId);});
+      if(list.length!==saved.length) idbSaveSetting("relatoriosOpIds",list);
+    });
     // Se removendo ativa, trocar para outra
     if(String(activeOpId)===String(opId)){
       setOps(function(o){
@@ -1205,7 +1386,7 @@ function AppProvider(props) {
     setOps({}); setActiveOpId(null);
     setPdfIndex({}); setPdfFolder(""); setPdfTotal(0); setPdfModal(null);
     setUpdated(null); setErr(null); setProj({nome:"",nroOp:""}); setTab("overview");
-    setDbRestored("");
+    setDbRestored(""); setRelSrc(null); relCacheRef.current=null;
     idbClear(); // limpar cache do navegador
   },[]);
 
@@ -1227,6 +1408,23 @@ function AppProvider(props) {
           if(!err&&file){ loadStr(file,{skipPush:true}); restoredList.push(file.name); }
         });
       }
+    });
+    // Restaurar Relatorio PCP mestre (varias OPs) + as OPs que ja tinham sido
+    // adicionadas dele antes de recarregar a pagina
+    idbLoad("relatorios-master",function(err,file){
+      if(err||!file) return;
+      file.arrayBuffer().then(function(buf){
+        try{
+          var opsOut=parseRelatoriosWorkbook(new Uint8Array(buf));
+          relCacheRef.current=opsOut;
+          setRelSrc({fileName:file.name,count:Object.keys(opsOut).length,list:relOpsListFrom(opsOut)});
+          idbLoadSetting("relatoriosOpIds",function(saved){
+            (Array.isArray(saved)?saved:[]).forEach(function(opId){
+              if(opsOut[opId]){ addOpFromRelatorios(opId,{skipPush:true,skipPersist:true}); restoredList.push("OP "+opId+" (Relatorio PCP)"); }
+            });
+          });
+        }catch(e){ /* arquivo em cache ficou invalido - ignora silenciosamente */ }
+      });
     });
     // Restaurar OCs
     idbLoad("ocs",function(err,file){
@@ -1302,7 +1500,7 @@ function AppProvider(props) {
     return function(){ unsubMeta(); unsubStr(); unsubPur(); unsubOc(); };
   },[]);
 
-  var val={strRows:strRows,purRows:purRows,ocRows:ocRows,dbRestored:dbRestored,intRows:intRows,kpis:kpis,stDist:stDist,ocDist:ocDist,sets:sets,ccRank:ccRank,reqRank:reqRank,topSup:topSup,pendingCenters:pendingCenters,pendingQueue:pendingQueue,covSet:covSet,clearErr:clearErr,tooltip:tooltip,setTooltip:setTooltip,ops:ops,activeOpId:activeOpId,switchOp:switchOp,removeOp:removeOp,ocByNum:ocByNum,ocByRef:ocByRef,hasOcRef:hasOcRef,hasOcFinance:hasOcFinance,intRowsOc:intRowsOc,pdfIndex:pdfIndex,pdfFolder:pdfFolder,pdfTotal:pdfTotal,pdfModal:pdfModal,openPdf:openPdf,closePdf:closePdf,tab:tab,setTab:setTab,strFile:strFile,purFile:purFile,ocFile:ocFile,updated:updated,loading:loading,err:err,proj:proj,loadStr:loadStr,loadPur:loadPur,loadOcFile:loadOcFile,loadPdfFolder:loadPdfFolder,reset:reset,exportBackup:exportBackup,importBackup:importBackup,syncStatus:syncStatus};
+  var val={strRows:strRows,purRows:purRows,ocRows:ocRows,dbRestored:dbRestored,intRows:intRows,kpis:kpis,stDist:stDist,ocDist:ocDist,sets:sets,ccRank:ccRank,reqRank:reqRank,topSup:topSup,pendingCenters:pendingCenters,pendingQueue:pendingQueue,covSet:covSet,clearErr:clearErr,tooltip:tooltip,setTooltip:setTooltip,ops:ops,activeOpId:activeOpId,switchOp:switchOp,removeOp:removeOp,ocByNum:ocByNum,ocByRef:ocByRef,hasOcRef:hasOcRef,hasOcFinance:hasOcFinance,intRowsOc:intRowsOc,pdfIndex:pdfIndex,pdfFolder:pdfFolder,pdfTotal:pdfTotal,pdfModal:pdfModal,openPdf:openPdf,closePdf:closePdf,tab:tab,setTab:setTab,strFile:strFile,purFile:purFile,ocFile:ocFile,updated:updated,loading:loading,err:err,proj:proj,loadStr:loadStr,loadPur:loadPur,loadOcFile:loadOcFile,loadPdfFolder:loadPdfFolder,reset:reset,exportBackup:exportBackup,importBackup:importBackup,syncStatus:syncStatus,relSrc:relSrc,loadRelatorios:loadRelatorios,addOpFromRelatorios:addOpFromRelatorios};
   return <Ctx.Provider value={val}>{ch}</Ctx.Provider>;
 }
 /* ATOMS */
@@ -1995,6 +2193,7 @@ function UploadPanel() {
     </div>
     {app.err&&<div className="mb-3"><Alert type="error" msg={app.err}/></div>}
     {app.loading&&<div className="mb-3"><Alert type="info" msg="Processando..."/></div>}
+    <RelatoriosPicker/>
     {/* OPs carregadas */}
     <div className="mb-3">
       <div className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2 flex items-center gap-2">
@@ -2008,13 +2207,17 @@ function UploadPanel() {
             <Ic.Ok s={12} c={isActive?"#60a5fa":"#334155"}/>
             <span className={"mono text-xs font-bold "+(isActive?"text-blue-300":"text-slate-400")}>#{op.opId}</span>
             <span className={"text-xs flex-1 truncate "+(isActive?"text-slate-200":"text-slate-500")}>{op.name}</span>
+            {op._src==="relatorios"&&<span className="text-[10px] px-1.5 py-0.5 bg-violet-900/40 border border-violet-500/30 rounded text-violet-300">Relatorio PCP</span>}
             <span className="text-xs text-slate-600 mono">{op.rows.length} itens</span>
             {!isActive&&<button onClick={function(){app.switchOp(op.opId);}} className="text-xs px-2 py-0.5 bg-blue-700/40 hover:bg-blue-700 rounded text-blue-300">Ativar</button>}
             <button onClick={function(){app.removeOp(op.opId);}} className="text-xs px-1.5 py-0.5 bg-slate-700 hover:bg-rose-900/50 rounded text-slate-500 hover:text-rose-400">x</button>
           </div>;
         })}
       </div>}
-      <OpAddBtn/>
+      <div className="flex items-center gap-2 flex-wrap">
+        <OpAddBtn/>
+        <RelatoriosAddBtn/>
+      </div>
     </div>
     {/* Arquivos compartilhados */}
     <div className="border-t border-slate-700/50 pt-3">
@@ -2350,6 +2553,58 @@ function OpAddBtn() {
   <input ref={ref} type="file" accept=".csv,.xlsx,.xls" className="hidden"
     onChange={function(e){var f=e.target.files&&e.target.files[0];if(f)app.loadStr(f);e.target.value="";}}/>
   </>;
+}
+
+function RelatoriosAddBtn() {
+  var app=useApp();
+  var ref=useRef();
+  return <><button onClick={function(){ref.current.click();}} title="Arquivo mestre do SIGER com todas as OPs (aba ITENS OP CUSTO), mais completo que a Estrutura por OP"
+    className="flex items-center gap-1 px-2 py-0.5 bg-violet-900/30 hover:bg-violet-900/50 border border-violet-500/30 rounded text-xs text-violet-300">
+    <Ic.Plus s={10}/>Relatorio PCP
+  </button>
+  <input ref={ref} type="file" accept=".xlsx,.xls" className="hidden"
+    onChange={function(e){var f=e.target.files&&e.target.files[0];if(f)app.loadRelatorios(f);e.target.value="";}}/>
+  </>;
+}
+
+function RelatoriosPicker() {
+  var app=useApp();
+  var _q=useState(""), q=_q[0], setQ=_q[1];
+  var _open=useState(true), open=_open[0], setOpen=_open[1];
+  if(!app.relSrc||!app.relSrc.list||!app.relSrc.list.length) return null;
+  var jaAdicionadas={};
+  Object.keys(app.ops).forEach(function(id){ if(app.ops[id]._src==="relatorios") jaAdicionadas[id]=true; });
+  var qq=q.trim().toLowerCase();
+  var filtrado=app.relSrc.list.filter(function(o){
+    if(!qq) return true;
+    return String(o.opId).indexOf(qq)>=0 || String(o.name||"").toLowerCase().indexOf(qq)>=0;
+  }).slice(0,60);
+  return <div className="bg-violet-950/20 border border-violet-500/30 rounded-2xl p-4 mb-3">
+    <div className="flex items-center gap-2 mb-2 flex-wrap">
+      <Ic.Layers s={13} c="#c4b5fd"/>
+      <span className="text-sm font-semibold text-violet-200">Relatorio PCP: {app.relSrc.fileName}</span>
+      <span className="text-xs text-violet-400/80 mono">{app.relSrc.count} OPs no arquivo</span>
+      <button onClick={function(){setOpen(!open);}} className="ml-auto text-xs px-2 py-0.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded text-slate-400">{open?"Ocultar":"Escolher OP"}</button>
+    </div>
+    {open&&<>
+      <input value={q} onChange={function(e){setQ(e.target.value);}} placeholder="Buscar por numero da OP ou descricao..."
+        className="w-full mb-2 px-3 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-violet-500/50"/>
+      <div className="max-h-64 overflow-y-auto flex flex-col gap-1">
+        {filtrado.map(function(o){
+          var added=!!jaAdicionadas[o.opId];
+          return <div key={o.opId} className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-slate-900/60 border border-slate-800">
+            <span className="mono text-xs font-bold text-violet-300 w-14">#{o.opId}</span>
+            <span className="text-xs flex-1 truncate text-slate-400">{o.name}</span>
+            <span className="text-xs text-slate-600 mono">{o.totalItens} itens</span>
+            {added?<span className="text-xs px-2 py-0.5 text-emerald-400">Adicionada</span>
+              :<button onClick={function(){app.addOpFromRelatorios(o.opId);}} className="text-xs px-2 py-0.5 bg-violet-700/40 hover:bg-violet-700 rounded text-violet-200">Adicionar</button>}
+          </div>;
+        })}
+        {!filtrado.length&&<div className="text-xs text-slate-600 px-2 py-2">Nenhuma OP encontrada para "{q}"</div>}
+      </div>
+      {app.relSrc.list.length>filtrado.length&&filtrado.length===60&&<div className="text-xs text-slate-600 mt-1">Mostrando as 60 primeiras - refine a busca para ver outras.</div>}
+    </>}
+  </div>;
 }
 
 function Header() {
