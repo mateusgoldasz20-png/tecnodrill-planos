@@ -170,7 +170,10 @@ function classifyRef(ref) {
   if (!r||r.length<5) return "outros";
   var s=r.substring(3,5);
   if (s==="01") return "peca_fabricada";
-  if (s==="50") return "conjunto";
+  // 50 = conjunto mecanico / 90 = conjunto eletrico (ex: 88290001 CONJUNTO
+  // ELETRICO HOTMELTER, 88190001 CJ. ELETRICO SIGMA 4C) - ambos sao CJ e
+  // precisam aparecer como conjunto pai na explosao do BOM.
+  if (s==="50"||s==="90") return "conjunto";
   return "outros";
 }
 function isSupply(ref) {
