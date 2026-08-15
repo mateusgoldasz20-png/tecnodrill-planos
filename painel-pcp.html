@@ -469,14 +469,23 @@ function parseRelatoriosWorkbook(buf) {
     if(!pendMap[keyc]) pendMap[keyc]=[];
     pendMap[keyc].push({ccDesc:String(rc[iCcDesc]||"").trim(), encerrado:String(rc[iCcEnc]||"").trim()});
   }
-  function pendentesTexto(op,seq){
+  /* Devolve os centros de custo da posicao em 3 listas na ORDEM do relatorio:
+     todos, so os pendentes e so os concluidos. Se o mesmo CC aparecer em mais
+     de uma linha, basta uma dizer "Nao" para ele contar como pendente. */
+  function centrosDe(op,seq){
     var lst=pendMap[op+"|"+seq];
-    if(!lst) return "";
-    var seen={};
-    return lst.filter(function(c){return c.encerrado.toLowerCase()!=="sim";})
-      .map(function(c){return c.ccDesc;})
-      .filter(function(c){if(!c||seen[c])return false;seen[c]=1;return true;})
-      .join(" / ");
+    if(!lst) return {todos:"",pendentes:"",concluidos:""};
+    var ordem=[], estado={};
+    lst.forEach(function(c){
+      if(!c.ccDesc) return;
+      if(estado[c.ccDesc]===undefined){ ordem.push(c.ccDesc); estado[c.ccDesc]=true; }
+      if(c.encerrado.toLowerCase()!=="sim") estado[c.ccDesc]=false;
+    });
+    return {
+      todos:ordem.join(" / "),
+      pendentes:ordem.filter(function(c){return !estado[c];}).join(" / "),
+      concluidos:ordem.filter(function(c){return estado[c];}).join(" / ")
+    };
   }
 
   /* agrupa ITENS OP CUSTO por OP -> por Seq.OP (posicao), guardando tambem
@@ -517,11 +526,12 @@ function parseRelatoriosWorkbook(buf) {
       var origemSequencia=nulSeq(pos.origemRaw);
       var tipoRef=seqOp===null?"projeto":classifyRef(pos.ref);
       var posTxt=posicaoFromDescrPos(pos.descrPos);
-      var pendTxt=pendentesTexto(op,seqRaw);
+      var cc=centrosDe(op,seqRaw), pendTxt=cc.pendentes;
       /* linha da propria posicao (uma unica por Seq.OP - preserva CJs pai/filho
          para a explosao do BOM exatamente como a exportacao antiga) */
       parsed.push({nroOp:op,seqOp:seqOp,origemSequencia:origemSequencia,qtdOp:pos.qtdProduzir,unidade:pos.un,
         produto:pos.code,referencia:pos.ref,descricao:pos.desc,ccAndamento:pendTxt,centrosCustoPendentes:pendTxt,
+        centrosCustoTodos:cc.todos,centrosCustoConcluidos:cc.concluidos,
         refInsumo:"",descInsumo:"",unidadeInsumo:"",posicao:posTxt,tipoReferencia:tipoRef,tipoInsumo:"outro",
         conjuntoPaiSeq:null,conjuntoPaiDescricao:null,estruturaRaizSeq:null,estruturaRaizDescricao:null});
       /* itens consumidos que NAO tem posicao propria nesta OP viram folhas
@@ -544,6 +554,7 @@ function parseRelatoriosWorkbook(buf) {
            folhas nao inflarem as contagens de conjuntos/pecas fabricadas. */
         parsed.push({nroOp:op,seqOp:"ins_"+it.code+"@"+seqRaw,origemSequencia:seqOp,qtdOp:0,unidade:it.un,
           produto:it.code,referencia:pos.ref,descricao:pos.desc,ccAndamento:pendTxt,centrosCustoPendentes:"",
+          centrosCustoTodos:cc.todos,centrosCustoConcluidos:cc.concluidos,
           refInsumo:leafRef,descInsumo:it.desc,unidadeInsumo:it.un,posicao:posTxt,tipoReferencia:classifyRef(leafRef),
           tipoInsumo:isSupply(leafRef)?"suprimento":"outro",conjuntoPaiSeq:null,conjuntoPaiDescricao:null,
           estruturaRaizSeq:null,estruturaRaizDescricao:null});
@@ -2834,6 +2845,19 @@ function TreeRow(props) {
   var ccRaw=pqItem?(pqItem.centrosCustoPendentes||pqItem.centrosCusto||pqItem.ccAndamento||""):"";
   var ccList=String(ccRaw||"").split("/").map(function(s){return s.trim();}).filter(Boolean);
 
+  /* Lista COMPLETA de centros de custo da posicao, com quais ja foram concluidos.
+     Vem do Relatorio PCP (aba CC PEND VS CONCL, coluna "Encerrado?"). A exportacao
+     antiga de Estrutura por OP nao traz os concluidos - nesse caso caimos de volta
+     para a lista de pendentes e nenhum aparece riscado. */
+  var ccTodos=useMemo(function(){
+    var todos=String(row.centrosCustoTodos||"").split("/").map(function(s){return s.trim();}).filter(Boolean);
+    var conc={};
+    String(row.centrosCustoConcluidos||"").split("/").forEach(function(s){ var t=s.trim(); if(t) conc[t]=1; });
+    if(!todos.length) todos=ccList;               /* formato antigo: so pendentes */
+    return todos.map(function(cc){ return {nome:cc, concluido:!!conc[cc]}; });
+  },[row.centrosCustoTodos,row.centrosCustoConcluidos,ccRaw]);
+  var ccFeitos=ccTodos.filter(function(c){return c.concluido;}).length;
+
   // Stats do sub-CJ: barras de progresso (so para conjuntos com profundidade > 0)
   var subCjStats=useMemo(function(){
     if(!isCj||depth===0) return null;
@@ -2850,20 +2874,37 @@ function TreeRow(props) {
     return {prodPct:prodPct,cobPct:cobPct,total:allItems.length,encerrados:encerrados,totalSups:sups.length,comOc:comOc};
   },[row.seqOp,isCj,depth,rows,app.intRows]);
 
-  // Celula de posicao: hover mostra CC pendentes
+  // Celula de posicao: hover lista TODOS os centros de custo do item, com os
+  // ja concluidos riscados. O contador "concluidos/total" fica visivel ao lado
+  // do badge, para nao precisar passar o mouse so para saber o andamento.
   function PosCell(){
     var badge=<Badge type="pos" value={row.posicao}/>;
-    if(!ccList.length) return badge;
-    return <HoverCard trigger={<span className="cursor-help">{badge}</span>}>
+    if(!ccTodos.length) return badge;
+    var pendentes=ccTodos.length-ccFeitos;
+    var tudoFeito=pendentes===0;
+    var trigger=<span className="cursor-help inline-flex items-center gap-1">
+      {badge}
+      <span className={"mono text-xs "+(tudoFeito?"text-emerald-400":"text-slate-500")}>{ccFeitos}/{ccTodos.length}</span>
+    </span>;
+    return <HoverCard trigger={trigger}>
       <div>
         <div className="bg-slate-800 px-3 py-2 border-b border-slate-700">
           <div className="text-xs font-bold text-white">{row.descricao||row.referencia}</div>
-          <div className="text-xs text-rose-400 mt-0.5 flex items-center gap-1"><Ic.Target s={10}/>{ccList.length} centro{ccList.length>1?"s":""} pendente{ccList.length>1?"s":""}</div>
+          <div className="text-xs mt-0.5 flex items-center gap-1">
+            <Ic.Target s={10}/>
+            <span className={tudoFeito?"text-emerald-400":"text-rose-400"}>
+              {tudoFeito
+                ? "Todos os "+ccTodos.length+" centros concluidos"
+                : pendentes+" de "+ccTodos.length+" centro"+(ccTodos.length>1?"s":"")+" pendente"+(pendentes>1?"s":"")}
+            </span>
+          </div>
         </div>
         <div className="px-3 py-2 flex flex-col gap-1">
-          {ccList.map(function(cc,i){return <div key={i} className="flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-rose-500 flex-shrink-0"/>
-            <span className="text-xs text-slate-300">{cc}</span>
+          {ccTodos.map(function(cc,i){return <div key={i} className="flex items-center gap-2">
+            {cc.concluido
+              ? <Ic.Ok s={11} c="#34d399"/>
+              : <span className="w-1.5 h-1.5 rounded-full bg-rose-500 flex-shrink-0 mx-[3px]"/>}
+            <span className={"text-xs "+(cc.concluido?"text-slate-500 line-through":"text-slate-300")}>{cc.nome}</span>
           </div>;})}
           {pqItem&&pqItem.bloqueioMaterial&&<div className="text-xs text-amber-400 mt-1 flex items-center gap-1"><Ic.Warn s={10}/>Bloqueio de material</div>}
         </div>
