@@ -532,8 +532,15 @@ function parseRelatoriosWorkbook(buf) {
         var dedupeKey=it.code+"|"+it.ref;
         if(seen[dedupeKey]) return; seen[dedupeKey]=1;
         var leafRef=it.ref||it.code;
+        /* "referencia"/"descricao" da folha apontam para a POSICAO que consome o
+           insumo (igual a exportacao de Estrutura por OP, onde a coluna
+           Referencia e' a do item pai e Ref Insumo e' a do insumo). Isso mantem
+           as colunas "Referencia" x "Ref Insumo" das abas Suprimentos e
+           Integrado com o mesmo significado de antes.
+           Ja "tipoReferencia" segue a classificacao do PROPRIO insumo, para as
+           folhas nao inflarem as contagens de conjuntos/pecas fabricadas. */
         parsed.push({nroOp:op,seqOp:"ins_"+it.code+"@"+seqRaw,origemSequencia:seqOp,qtdOp:0,unidade:it.un,
-          produto:it.code,referencia:leafRef,descricao:it.desc,ccAndamento:"",centrosCustoPendentes:"",
+          produto:it.code,referencia:pos.ref,descricao:pos.desc,ccAndamento:pendTxt,centrosCustoPendentes:"",
           refInsumo:leafRef,descInsumo:it.desc,unidadeInsumo:it.un,posicao:posTxt,tipoReferencia:classifyRef(leafRef),
           tipoInsumo:isSupply(leafRef)?"suprimento":"outro",conjuntoPaiSeq:null,conjuntoPaiDescricao:null,
           estruturaRaizSeq:null,estruturaRaizDescricao:null});
