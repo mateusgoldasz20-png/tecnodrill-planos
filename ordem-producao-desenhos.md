@@ -1,7 +1,7 @@
 # OP + Desenho — impressão de ordens de produção do SIGER
 
 **Projeto iniciado em:** 22/08/2026
-**Status:** especificação inicial (Fase 1 definida, ainda não implementada)
+**Status:** Fase 1 implementada em `op-desenhos.html`
 **Repositório:** `tecnodrill-planos` — mesma linha de ferramentas de `index.html` (Planos 5W2H) e `custo-producao.html` (Custo de Produção)
 
 ---
@@ -123,8 +123,15 @@ Se nenhum arquivo passar nesse teste, o app faz uma **segunda varredura tolerant
 
 > **Todo PDF cujo nome começa com `REV` é descartado.**
 
+**Confirmado com a engenharia (22/08/2026):** o `REV` vem **sempre à frente dos 8 dígitos** e marca a
+**revisão antiga**. O desenho **vigente nunca tem `REV` no nome**. Não existe o caso ambíguo de `REV` no
+meio do nome — a regra é determinística.
+
 Comparação sem diferenciar maiúsculas/minúsculas e ignorando espaços iniciais:
-`REV`, `rev`, `Rev 02 - 9.57.00.004.pdf`, ` REV_9.57.00.004.pdf` → todos ignorados.
+`REV 9.57.00.004.pdf`, `rev2 9.57.00.004.pdf`, `REV_9.57.00.004.pdf`, `REV-9.57.00.004.pdf` → todos ignorados.
+
+`REV` precisa ser **token**, não só as três primeiras letras: `REVESTIMENTO 9.57.00.004.pdf` é um desenho
+legítimo e **não** é descartado. A regra implementada é `^\s*REV(?![A-Za-zÀ-ÿ])`.
 
 O descarte é **registrado no log**, não é silencioso: se um arquivo `REV…` era o único
 candidato, o app informa isso explicitamente em vez de dizer apenas "desenho não encontrado".
@@ -141,6 +148,9 @@ O app nunca imprime "quase certo". Cada falha tem uma mensagem específica:
 | Nenhum PDF bate | `Desenho 9.57.00.004 não encontrado (142 arquivos varridos)` |
 | Só havia `REV…` | `Só existe versão REV para 9.57.00.004 — verifique com a engenharia` |
 | Vários batem | lista os caminhos e pede a escolha |
+
+**Confirmado com a engenharia (22/08/2026):** os PDFs ficam **todos soltos na raiz** da pasta de desenhos,
+sem subpastas. A varredura é de um nível só — não é recursiva.
 
 OPs pendentes ficam numa fila visível na tela e podem ser resolvidas manualmente
 (apontar o arquivo à mão), sem travar o lote inteiro.
@@ -244,16 +254,16 @@ Nenhum arquivo sai do computador. Não há servidor, upload ou nuvem no meio.
 
 ## 8. Fases
 
-### Fase 1 — o que resolve o problema de hoje
-- [ ] Ler o código de 8 dígitos do nome do PDF da OP
-- [ ] Conectar às pastas `Projetos` e `OP para imprimir` (com permissão memorizada)
-- [ ] Navegar `A` → `A.BB` → `Desenho*` com correspondência tolerante de nomes
-- [ ] Casar `95700004` ↔ `9.57.00.004.pdf` ignorando pontos
-- [ ] Descartar arquivos que começam com `REV`
-- [ ] Juntar OP + desenho em um único PDF em `Prontos/`
-- [ ] Lote: processar a pasta `OP para imprimir` inteira de uma vez
-- [ ] Fila com status por OP e resolução manual das pendências
-- [ ] Log de auditoria (qual arquivo foi usado, caminho completo, data)
+### Fase 1 — implementada em `op-desenhos.html`
+- [x] Ler o código de 8 dígitos do nome do PDF da OP
+- [x] Conectar às pastas `Projetos` e `OP para imprimir` (com permissão memorizada)
+- [x] Navegar `A` → `A.BB` → `Desenho*` com correspondência tolerante de nomes
+- [x] Casar `95700004` ↔ `9.57.00.004.pdf` ignorando pontos
+- [x] Descartar arquivos que começam com `REV`
+- [x] Juntar OP + desenho em um único PDF em `Prontos/`
+- [x] Lote: processar a pasta `OP para imprimir` inteira de uma vez
+- [x] Fila com status por OP e resolução manual das pendências
+- [x] Log de auditoria (qual arquivo foi usado, caminho completo, data)
 
 ### Fase 2 — desenhos de cada item da OP
 Carregar a planilha do SIGER (aba `ITENS OP CUSTO`, a mesma de `custo-producao.html`),
@@ -270,23 +280,42 @@ pela coluna `Ref.Item`. Aí entra a folha de rosto com a lista de posições e q
 
 ## 9. Pontos em aberto
 
-Perguntas que precisam de resposta antes de codificar a Fase 1:
+### Resolvido em 22/08/2026
 
-1. **`REV` no meio do nome.** A regra combinada é "começa com REV". Mas e um arquivo
-   `9.57.00.004 REV 2.pdf`? É a revisão **vigente** (deve ser usada) ou a **antiga** (deve ser ignorada)?
-   Hoje o app usaria — precisa confirmar.
-2. **Onde fica a revisão atual?** Se o desenho vigente é sempre `9.57.00.004.pdf` e os `REV…` são
-   histórico, a regra atual já basta. Se a revisão vigente tem sufixo, a regra muda.
-3. **Nome da pasta de desenhos.** Além de `Desenho` e `Desenho PDF`, existe alguma outra variação
-   no servidor? (`DWG`, `Desenhos 2D`, `PDF`…)
-4. **Estrutura uniforme?** Todos os projetos de `1` a `9` seguem `A.BB`, ou algum tem nível extra
+1. **`REV` no meio do nome.** Não ocorre — o `REV` vem sempre à frente dos 8 dígitos, e sempre indica
+   revisão **antiga**. O vigente nunca tem `REV`. Regra fechada, ver 4.4.
+2. **Onde fica a revisão atual.** É o arquivo sem `REV`: `9.57.00.004.pdf`.
+3. **Subpastas dentro da pasta de desenhos.** Não há — os PDFs estão todos soltos. Varredura de um nível.
+
+### Ainda em aberto
+
+4. **Nome da pasta de desenhos.** Além de `Desenho` e `Desenho PDF`, existe outra variação no servidor?
+   O app aceita qualquer pasta que contenha "DESENHO" no nome e prefere `Desenho PDF` quando há mais de uma.
+5. **Estrutura uniforme?** Todos os projetos de `1` a `9` seguem `A.BB`, ou algum tem nível extra
    (`9.57\9.57.01\Desenho`)?
-5. **Subpastas dentro de `Desenho PDF`.** Os PDFs estão todos soltos na raiz da pasta, ou há
-   subdivisões (por conjunto, por ano)? Se houver, a varredura precisa ser recursiva.
-6. **Desenho de montagem.** Uma OP de conjunto tem um desenho só, ou o operador precisa também
-   dos desenhos dos componentes? (Isso é o que a Fase 2 resolve — a pergunta é se ela é urgente.)
+6. **Desenho de montagem.** Uma OP de conjunto tem um desenho só, ou o operador também precisa dos
+   desenhos dos componentes? (É o que a Fase 2 resolve — a pergunta é se ela é urgente.)
 7. **`OP para imprimir` é única ou por pessoa/setor?**
-8. **Volume.** Quantas OPs por dia passam por esse processo? Define se o modo lote é prioridade.
+8. **Volume.** Quantas OPs por dia passam por esse processo?
+
+## 9.1 O aplicativo
+
+`op-desenhos.html` — arquivo único, sem build, mesmo padrão de `custo-producao.html`.
+Publicado junto com o resto do repositório; abrir pelo endereço HTTPS (GitHub Pages), não por duplo clique.
+
+Uso: conectar as duas pastas (uma vez), arrastar os PDFs das OPs ou clicar em
+**Ler pasta OP para imprimir**, e **Gerar todos**. O resultado sai em `OP para imprimir / Prontos`.
+
+O arquivo expõe alguns ganchos `window.__*` no fim do script, usados apenas pelo teste automatizado
+de navegador — não fazem parte do fluxo do usuário.
+
+### Testes já executados
+
+| Teste | Cobertura |
+|---|---|
+| Unitário das regras de nome (30 casos) | máscara `A.BB.CC.DDD`, pontos ignorados, `9.57.00.0045` não casa com `95700004`, filtro `REV`, `REVESTIMENTO` preservado, prefixo de pasta (`9.570` e `9.5` rejeitados) |
+| Ponta a ponta no Chromium, com pastas simuladas | navegou `Projetos / 9 - Perfuratrizes / 9.57 - Perfuratriz Hidráulica / Desenho PDF`, ignorou a armadilha `9.570`, descartou o `REV`, escolheu `9.57.00.004.pdf` e gravou um PDF de 3 páginas (2 da OP + 1 do desenho) |
+| Caminhos de falha | só existe `REV`, dois arquivos com o mesmo código, projeto sem pasta de desenhos, família inexistente — cada um com a mensagem certa, e a confirmação manual do candidato funcionando |
 
 ## 10. Checklist de validação (com dados reais)
 

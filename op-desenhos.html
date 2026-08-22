@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TECNODRILL · OP + Desenho</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+<style>
+  :root{
+    --bg:#08090b; --panel:#141414; --panel-2:#1d2026; --panel-3:#232832; --line:#30343c;
+    --red:#E8000D; --red-soft:#ff4b55; --green:#20c997; --amber:#f6c453;
+    --text:#f5f7fb; --muted:#a8afbc; --muted-2:#737b89;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; -webkit-font-smoothing:antialiased;}
+  h1,h2,h3,.disp{font-family:'Barlow Condensed',sans-serif; text-transform:uppercase; letter-spacing:0.02em;}
+  .app-shell{display:grid; grid-template-columns:202px minmax(0,1fr); min-height:100vh;}
+  .sidebar{position:sticky; top:0; height:100vh; background:#0b0b0c; border-right:1px solid var(--line); padding:18px 10px; overflow:auto;}
+  .side-brand{display:flex; align-items:center; gap:10px; padding:4px 8px 24px;}
+  .brand-mark{width:36px;height:36px;flex:0 0 36px;border-radius:8px;background:var(--red);display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:16px;color:#fff;}
+  .side-brand strong{font-family:'Barlow Condensed',sans-serif; font-size:20px; letter-spacing:.08em;}
+  .side-brand div span{display:block; color:var(--muted-2); font-size:10px; letter-spacing:.16em; text-transform:uppercase; margin-top:1px;}
+  .side-nav{display:flex; flex-direction:column; gap:6px;}
+  .side-nav a{display:flex; align-items:center; gap:10px; min-height:42px; padding:10px 12px; color:var(--muted); text-decoration:none; border-radius:6px; border:1px solid transparent; font-weight:600; font-size:14px;}
+  .side-nav a.active{background:#3a070b; color:#fff; border-color:#4e0b10;}
+  .side-nav a:hover{color:#fff; border-color:var(--line); background:#141414;}
+  .side-help{margin-top:26px; padding:12px; border:1px solid var(--line); border-radius:6px; background:#0f1013; color:var(--muted-2); font-size:11px; line-height:1.5;}
+  .side-help strong{display:block; color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.1em; margin-bottom:6px;}
+  .side-help code{color:var(--muted); font-size:11px;}
+  .main-shell{min-width:0;}
+  .topbar{min-height:72px; display:flex; align-items:center; justify-content:space-between; gap:18px; padding:12px 24px; background:#101011; border-bottom:1px solid var(--line); position:sticky; top:0; z-index:5; flex-wrap:wrap;}
+  .topbar h1{font-size:22px; margin:0;}
+  .topbar .sub{color:var(--muted); font-size:12px; margin-top:2px;}
+  .chips{display:flex; gap:8px; flex-wrap:wrap;}
+  .chip{display:flex; align-items:center; gap:8px; border:1px solid var(--line); background:#18191c; border-radius:18px; padding:7px 13px; font-size:12px; color:var(--muted); cursor:pointer;}
+  .chip:hover{border-color:#4a505c; color:#fff;}
+  .chip .dot{width:8px; height:8px; border-radius:99px; background:var(--muted-2); flex:0 0 8px;}
+  .chip.on{color:#fff; border-color:#245c48; background:#10231d;}
+  .chip.on .dot{background:var(--green); box-shadow:0 0 10px rgba(32,201,151,.7);}
+  .chip.saved .dot{background:var(--amber);}
+  .wrap{padding:22px 24px 70px; max-width:1180px;}
+  .banner{border:1px solid #5a3a10; background:#241a09; color:#ffd79a; padding:13px 16px; border-radius:8px; font-size:13px; line-height:1.5; margin-bottom:18px;}
+  .banner strong{color:#fff;}
+  section{margin-bottom:22px;}
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:10px;}
+  .card-head{display:flex; align-items:center; justify-content:space-between; gap:14px; padding:14px 16px; border-bottom:1px solid var(--line); flex-wrap:wrap;}
+  .card-head h2{font-size:16px; margin:0;}
+  .card-head .note{color:var(--muted-2); font-size:12px; margin-top:2px;}
+  .card-body{padding:16px;}
+  .drop{border:2px dashed #343a45; border-radius:10px; background:#101114; padding:32px 20px; text-align:center; transition:.15s; cursor:pointer;}
+  .drop:hover, .drop.over{border-color:var(--red); background:#170d0f;}
+  .drop .big{font-family:'Barlow Condensed',sans-serif; font-size:22px; text-transform:uppercase; letter-spacing:.04em;}
+  .drop .small{color:var(--muted); font-size:13px; margin-top:6px;}
+  .btn{border:1px solid var(--line); background:#1b1d22; color:var(--text); border-radius:6px; padding:9px 15px; font-size:13px; font-weight:600; cursor:pointer; font-family:inherit;}
+  .btn:hover{border-color:#4a505c; background:#22252b;}
+  .btn.primary{background:var(--red); border-color:var(--red); color:#fff;}
+  .btn.primary:hover{background:#ff1622;}
+  .btn:disabled{opacity:.4; cursor:not-allowed;}
+  .btn.sm{padding:6px 11px; font-size:12px;}
+  .row-actions{display:flex; gap:8px; flex-wrap:wrap; align-items:center;}
+  .progress{height:4px; background:#22252b; border-radius:99px; overflow:hidden; margin-top:12px;}
+  .progress span{display:block; height:100%; width:0%; background:linear-gradient(90deg,var(--red),var(--green)); transition:width .2s;}
+  table{width:100%; border-collapse:collapse; font-size:13px;}
+  th{text-align:left; color:var(--muted-2); font-size:10px; letter-spacing:.12em; text-transform:uppercase; font-weight:700; padding:0 12px 9px; border-bottom:1px solid var(--line);}
+  td{padding:11px 12px; border-bottom:1px solid #1e2126; vertical-align:top;}
+  tr:last-child td{border-bottom:0;}
+  .cod{font-family:'Barlow Condensed',sans-serif; font-size:18px; font-weight:700; letter-spacing:.03em; color:#fff; white-space:nowrap;}
+  .cod small{display:block; font-family:'Inter',sans-serif; font-size:11px; font-weight:400; letter-spacing:0; color:var(--muted-2); margin-top:1px;}
+  .st{display:inline-flex; align-items:center; gap:7px; font-weight:600; font-size:12px; white-space:nowrap;}
+  .st .dot{width:8px;height:8px;border-radius:99px;flex:0 0 8px;background:var(--muted-2);}
+  .st.pronto{color:var(--green);} .st.pronto .dot{background:var(--green);}
+  .st.pendente{color:var(--amber);} .st.pendente .dot{background:var(--amber);}
+  .st.multiplo{color:var(--amber);} .st.multiplo .dot{background:var(--amber);}
+  .st.erro{color:var(--red-soft);} .st.erro .dot{background:var(--red-soft);}
+  .st.processando{color:#7cc4ff;} .st.processando .dot{background:#7cc4ff; animation:pulse .8s infinite;}
+  @keyframes pulse{50%{opacity:.3;}}
+  .msg{color:var(--muted); font-size:12px; line-height:1.45;}
+  .msg .path{color:var(--muted-2); font-size:11px; display:block; margin-top:3px; overflow-wrap:anywhere;}
+  .cands{margin-top:8px; display:flex; flex-direction:column; gap:5px;}
+  .cand{display:flex; align-items:center; justify-content:space-between; gap:10px; background:#17191e; border:1px solid #2b2f38; border-radius:5px; padding:7px 10px; font-size:12px;}
+  .cand span{overflow-wrap:anywhere;}
+  .empty{color:var(--muted-2); font-size:13px; padding:22px 12px; text-align:center;}
+  .logbox{background:#0d0e11; border:1px solid var(--line); border-radius:8px; padding:12px 14px; max-height:230px; overflow:auto; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:11.5px; line-height:1.7; color:var(--muted);}
+  .logbox div{overflow-wrap:anywhere;}
+  .opt{display:flex; align-items:center; gap:8px; color:var(--muted); font-size:12px; cursor:pointer;}
+  .counts{display:flex; gap:14px; flex-wrap:wrap; color:var(--muted-2); font-size:12px;}
+  .counts b{color:#fff; font-weight:700;}
+  input[type=file].hidden{display:none;}
+  @media (max-width:860px){ .app-shell{grid-template-columns:1fr;} .sidebar{display:none;} }
+</style>
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="side-brand">
+      <span class="brand-mark">TD</span>
+      <div><strong>TECNODRILL</strong><span>OP + Desenho</span></div>
+    </div>
+    <nav class="side-nav">
+      <a class="active" href="#">▤ Impressão de OP</a>
+      <a href="custo-producao.html">◷ Custo de Produção</a>
+      <a href="index.html">▦ Planos 5W2H</a>
+    </nav>
+    <div class="side-help">
+      <strong>Como o desenho é achado</strong>
+      código <code>95700004</code><br>
+      → pasta <code>9</code><br>
+      → projeto <code>9.57</code><br>
+      → <code>Desenho PDF</code><br>
+      → <code>9.57.00.004.pdf</code><br><br>
+      Os pontos são ignorados na comparação.
+      Arquivos que começam com <code>REV</code> são revisão antiga e nunca são usados.
+    </div>
+  </aside>
+
+  <div class="main-shell">
+    <div class="topbar">
+      <div>
+        <h1>OP + Desenho</h1>
+        <div class="sub">Junta a ordem de produção do SIGER com o desenho da engenharia em um único PDF</div>
+      </div>
+      <div class="chips">
+        <button class="chip" id="chipProjetos" type="button"><span class="dot"></span><span id="txtProjetos">Conectar pasta Projetos</span></button>
+        <button class="chip" id="chipOP" type="button"><span class="dot"></span><span id="txtOP">Conectar OP para imprimir</span></button>
+      </div>
+    </div>
+
+    <div class="wrap">
+      <div class="banner" id="bannerSuporte" hidden>
+        <strong>Este navegador não consegue abrir as pastas do servidor.</strong>
+        Use <strong>Chrome</strong> ou <strong>Edge</strong> para que o desenho seja localizado automaticamente.
+        Aqui você ainda pode arrastar o PDF da OP e anexar o desenho à mão em cada linha da fila.
+      </div>
+      <div class="banner" id="bannerHttps" hidden>
+        <strong>Página aberta como arquivo local.</strong>
+        O acesso às pastas exige a página publicada (HTTPS) ou <code>localhost</code>.
+        Abra pelo endereço do GitHub Pages para conectar o servidor de engenharia.
+      </div>
+
+      <section>
+        <div class="card">
+          <div class="card-head">
+            <div>
+              <h2>Ordens de produção</h2>
+              <div class="note">O nome do PDF precisa conter o código de 8 dígitos — ex.: <code>95700004.pdf</code></div>
+            </div>
+            <div class="row-actions">
+              <button class="btn" id="btnVarrer" type="button">Ler pasta OP para imprimir</button>
+              <button class="btn" id="btnLimpar" type="button">Limpar fila</button>
+              <button class="btn primary" id="btnGerar" type="button">Gerar todos</button>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="drop" id="drop">
+              <div class="big">Arraste aqui os PDFs das OPs</div>
+              <div class="small">ou clique para escolher os arquivos</div>
+            </div>
+            <input type="file" id="fileOPs" class="hidden" accept="application/pdf" multiple>
+            <div class="progress" id="progressWrap" hidden><span id="progressBar"></span></div>
+            <div style="margin-top:13px; display:flex; justify-content:space-between; gap:14px; flex-wrap:wrap; align-items:center;">
+              <label class="opt"><input type="checkbox" id="chkCopiarDesenho"> Salvar também o desenho original separado</label>
+              <div class="counts" id="counts"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="card">
+          <div class="card-head">
+            <div>
+              <h2>Fila</h2>
+              <div class="note">O PDF final vai para <code>OP para imprimir / Prontos</code>. Os originais não são movidos nem renomeados.</div>
+            </div>
+          </div>
+          <div class="card-body" style="padding:16px 4px;">
+            <table>
+              <thead><tr><th style="width:120px;">Código</th><th style="width:140px;">Situação</th><th>Detalhe</th><th style="width:150px;"></th></tr></thead>
+              <tbody id="tbody"><tr><td colspan="4"><div class="empty">Nenhuma OP na fila.</div></td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="card">
+          <div class="card-head">
+            <div><h2>Log de auditoria</h2><div class="note">Qual arquivo foi usado, de qual caminho, em que hora</div></div>
+            <button class="btn sm" id="btnLog" type="button">Baixar log (CSV)</button>
+          </div>
+          <div class="card-body"><div class="logbox" id="logbox"></div></div>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+/* ============================================================
+   TECNODRILL · OP + Desenho
+   Regra de negocio (confirmada com a engenharia em 22/08/2026):
+
+   codigo da OP = 8 digitos, mascara A.BB.CC.DDD
+     95700004 -> Projetos / 9 / 9.57 / Desenho PDF / 9.57.00.004.pdf
+
+   - o SIGER escreve sem pontos, a engenharia nomeia com pontos:
+     a comparacao ignora os pontos.
+   - todo arquivo cujo nome COMECA com REV e revisao antiga e nunca
+     e usado; o desenho vigente nunca tem REV no nome.
+   - os PDFs ficam todos soltos na raiz da pasta de desenhos
+     (sem subpastas), entao a varredura nao e recursiva.
+   ============================================================ */
+
+var PDFLib = window.PDFLib;
+var dirProjetos = null, dirOP = null;
+var fila = [], seq = 0, logLinhas = [], cacheProjeto = {}, rodando = false;
+var projetosOk = false, opOk = false;
+
+/* ---------- utilidades de texto ---------- */
+function norm(s){ return (s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toUpperCase().replace(/\s+/g,' ').trim(); }
+function digits(s){ return (s||'').replace(/\D/g,''); }
+function tokenLider(s){ return (s||'').split(/[\s\-_]+/)[0] || ''; }
+function semExt(nome){ return nome.replace(/\.pdf$/i,''); }
+/* revisao antiga: REV como token no inicio (REV 9.57..., REV2..., REV_9.57...).
+   Nao pega palavras que apenas comecam com essas 3 letras, como REVESTIMENTO. */
+function ehRev(nome){ return /^\s*REV(?![A-Za-z\u00C0-\u00FF])/i.test(nome); }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+
+/* mascara do arquivo de desenho: 95700004 -> 9.57.00.004 */
+function nomeDesenho(cod){ return cod.charAt(0)+'.'+cod.slice(1,3)+'.'+cod.slice(3,5)+'.'+cod.slice(5,8); }
+
+/* codigo de 8 digitos a partir do nome de um arquivo de desenho.
+   So o token lider conta: "9.57.00.004 - suporte.pdf" -> "95700004" */
+function codigoDoDesenho(nome){ return digits(tokenLider(semExt(nome))); }
+
+/* codigo de 8 digitos a partir do nome do PDF da OP */
+function codigoDaOP(nome){
+  var base = semExt(nome), d = digits(base);
+  if(d.length === 8) return d;
+  var m = base.match(/(?:^|\D)(\d{8})(?:\D|$)/);
+  return m ? m[1] : null;
+}
+
+/* nome de pasta casa com o alvo? aceita sufixo depois de espaco, - ou _
+   "9.57" casa com "9.57 - Perfuratriz X"; nao casa com "9.5" nem "9.570" */
+function casaPasta(nome, alvo){
+  var n = norm(nome), a = norm(alvo);
+  if(n === a) return true;
+  if(n.indexOf(a) !== 0) return false;
+  return /[\s\-_]/.test(n.charAt(a.length));
+}
+
+/* ---------- log ---------- */
+function log(txt){
+  var linha = '[' + new Date().toLocaleTimeString('pt-BR') + '] ' + txt;
+  logLinhas.push({hora:new Date().toLocaleString('pt-BR'), texto:txt});
+  var box = document.getElementById('logbox');
+  var el = document.createElement('div');
+  el.textContent = linha;
+  box.appendChild(el);
+  box.scrollTop = box.scrollHeight;
+}
+
+/* ---------- permissoes lembradas (IndexedDB) ---------- */
+function abrirDB(){
+  return new Promise(function(res, rej){
+    var r = indexedDB.open('tecnodrill-op-desenho', 1);
+    r.onupgradeneeded = function(){ r.result.createObjectStore('handles'); };
+    r.onsuccess = function(){ res(r.result); };
+    r.onerror = function(){ rej(r.error); };
+  });
+}
+function guardar(chave, valor){
+  return abrirDB().then(function(db){
+    return new Promise(function(res, rej){
+      var t = db.transaction('handles','readwrite');
+      t.objectStore('handles').put(valor, chave);
+      t.oncomplete = function(){ res(); };
+      t.onerror = function(){ rej(t.error); };
+    });
+  });
+}
+function recuperar(chave){
+  return abrirDB().then(function(db){
+    return new Promise(function(res, rej){
+      var t = db.transaction('handles','readonly');
+      var q = t.objectStore('handles').get(chave);
+      q.onsuccess = function(){ res(q.result || null); };
+      q.onerror = function(){ rej(q.error); };
+    });
+  }).catch(function(){ return null; });
+}
+async function temPermissao(handle, modo){
+  var opt = {mode: modo};
+  if(await handle.queryPermission(opt) === 'granted') return true;
+  return (await handle.requestPermission(opt)) === 'granted';
+}
+
+/* ---------- navegacao nas pastas ---------- */
+async function listarPastas(pai){
+  var out = [];
+  for await (var ent of pai.values()){ if(ent.kind === 'directory') out.push(ent); }
+  return out;
+}
+
+async function acharPasta(pai, alvo){
+  try { return await pai.getDirectoryHandle(alvo); } catch(e){ /* nome nao e exato */ }
+  var dirs = await listarPastas(pai), i;
+  for(i=0;i<dirs.length;i++){ if(casaPasta(dirs[i].name, alvo)) return dirs[i]; }
+  var alvoD = digits(alvo);
+  for(i=0;i<dirs.length;i++){ if(digits(tokenLider(dirs[i].name)) === alvoD) return dirs[i]; }
+  return null;
+}
+
+var ARQUIVO_MORTO = /ANTIG|OBSOLET|BACKUP|SUPERAD|NAO USAR|\bOLD\b/;
+
+async function acharPastaDesenhos(dirProjeto){
+  var limpos = [], mortos = [];
+  var dirs = await listarPastas(dirProjeto);
+  for(var i=0;i<dirs.length;i++){
+    var n = norm(dirs[i].name);
+    if(n.indexOf('DESENHO') < 0) continue;
+    var score = (n === 'DESENHO PDF') ? 4 : (n.indexOf('PDF') >= 0 ? 3 : 2);
+    (ARQUIVO_MORTO.test(n) ? mortos : limpos).push({h:dirs[i], score:score});
+  }
+  var lista = limpos.length ? limpos : mortos;
+  if(!lista.length) return null;
+  lista.sort(function(a,b){ return b.score - a.score; });
+  return {handle:lista[0].h, suspeita: limpos.length === 0};
+}
+
+/* indice da pasta de desenhos: uma varredura por projeto, reaproveitada
+   por todas as OPs do mesmo projeto na mesma sessao */
+async function indexarDesenhos(dirDesenho){
+  var porCodigo = {}, revs = [], todos = [], total = 0;
+  for await (var ent of dirDesenho.values()){
+    if(ent.kind !== 'file' || !/\.pdf$/i.test(ent.name)) continue;
+    total++;
+    var d = digits(semExt(ent.name));
+    if(ehRev(ent.name)){ revs.push({nome:ent.name, d:d}); continue; }
+    todos.push({nome:ent.name, h:ent, d:d});
+    var c = codigoDoDesenho(ent.name);
+    if(c.length === 8){ (porCodigo[c] = porCodigo[c] || []).push({nome:ent.name, h:ent}); }
+  }
+  return {porCodigo:porCodigo, revs:revs, todos:todos, total:total};
+}
+
+async function abrirProjeto(cod){
+  var fam = cod.charAt(0), proj = cod.charAt(0)+'.'+cod.slice(1,3);
+  if(cacheProjeto[proj]) return cacheProjeto[proj];
+
+  var dFam = await acharPasta(dirProjetos, fam);
+  if(!dFam) return {erro:'Família ' + fam + ' não encontrada dentro de Projetos'};
+  var dProj = await acharPasta(dFam, proj);
+  if(!dProj) return {erro:'Projeto ' + proj + ' não existe na família ' + fam};
+  var des = await acharPastaDesenhos(dProj);
+  if(!des) return {erro:'Projeto ' + proj + ' não tem pasta Desenho / Desenho PDF'};
+
+  var idx = await indexarDesenhos(des.handle);
+  var caminho = dirProjetos.name + '/' + dFam.name + '/' + dProj.name + '/' + des.handle.name;
+  log('Indexado ' + caminho + ' — ' + idx.total + ' PDF(s), ' + idx.revs.length + ' ignorado(s) por REV');
+  if(des.suspeita) log('AVISO ' + proj + ': a única pasta de desenhos parece arquivo morto (' + des.handle.name + ')');
+
+  cacheProjeto[proj] = {idx:idx, caminho:caminho, proj:proj};
+  return cacheProjeto[proj];
+}
+
+/* resultado: {arquivo} | {candidatos} | {erro} */
+async function localizarDesenho(cod){
+  var p = await abrirProjeto(cod);
+  if(p.erro) return p;
+  var alvo = nomeDesenho(cod), idx = p.idx;
+
+  var exatos = idx.porCodigo[cod] || [];
+  if(exatos.length === 1) return {arquivo:exatos[0], caminho:p.caminho};
+  if(exatos.length > 1) return {candidatos:exatos, caminho:p.caminho, motivo:exatos.length + ' arquivos com o código ' + alvo};
+
+  /* nada bateu no token lider: varredura tolerante, so como sugestao */
+  var tolerantes = idx.todos.filter(function(f){ return f.d.indexOf(cod) >= 0; });
+  if(tolerantes.length) return {candidatos:tolerantes, caminho:p.caminho, motivo:'nenhum nome exato — ' + tolerantes.length + ' arquivo(s) contêm ' + alvo};
+
+  /* existe, mas so como revisao antiga */
+  var revs = idx.revs.filter(function(r){ return r.d.indexOf(cod) >= 0; });
+  if(revs.length) return {erro:'Só existe versão REV de ' + alvo + ' (' + revs[0].nome + ') — revisão antiga, confira com a engenharia'};
+
+  return {erro:'Desenho ' + alvo + ' não encontrado — ' + idx.total + ' arquivo(s) varridos em ' + p.caminho};
+}
+
+/* ---------- PDF ---------- */
+async function bytesDe(fileOuHandle){
+  var f = fileOuHandle.getFile ? await fileOuHandle.getFile() : fileOuHandle;
+  return new Uint8Array(await f.arrayBuffer());
+}
+
+async function juntar(bytesOP, bytesDes, cod){
+  var out = await PDFLib.PDFDocument.create();
+  var a = await PDFLib.PDFDocument.load(bytesOP, {ignoreEncryption:true});
+  (await out.copyPages(a, a.getPageIndices())).forEach(function(p){ out.addPage(p); });
+  var b = await PDFLib.PDFDocument.load(bytesDes, {ignoreEncryption:true});
+  (await out.copyPages(b, b.getPageIndices())).forEach(function(p){ out.addPage(p); });
+  out.setTitle('OP ' + cod + ' + desenho ' + nomeDesenho(cod));
+  out.setProducer('Tecnodrill OP + Desenho');
+  return out.save();
+}
+
+async function gravarEmProntos(nome, bytes){
+  var prontos = await dirOP.getDirectoryHandle('Prontos', {create:true});
+  var fh = await prontos.getFileHandle(nome, {create:true});
+  var w = await fh.createWritable();
+  await w.write(bytes);
+  await w.close();
+}
+
+function baixar(nome, bytes){
+  var url = URL.createObjectURL(new Blob([bytes], {type:'application/pdf'}));
+  var a = document.createElement('a');
+  a.href = url; a.download = nome; a.click();
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 5000);
+}
+
+/* ---------- fila ---------- */
+function setStatus(item, status, msg){ item.status = status; item.msg = msg; render(); }
+
+function addOPs(lista){
+  var novos = 0;
+  for(var i=0;i<lista.length;i++){
+    var f = lista[i];
+    if(!/\.pdf$/i.test(f.name)) continue;
+    if(/OP \+ Desenho/i.test(f.name)) continue;
+    var cod = codigoDaOP(f.name);
+    if(!cod){ log('Ignorado: ' + f.name + ' — o nome não contém um código de 8 dígitos'); continue; }
+    if(fila.some(function(it){ return it.codigo === cod; })){ log('Ignorado: ' + f.name + ' — OP ' + cod + ' já está na fila'); continue; }
+    fila.push({id:++seq, codigo:cod, nome:f.name, origem:f, status:'fila', msg:'na fila'});
+    novos++;
+  }
+  render();
+  if(novos) log(novos + ' OP(s) adicionada(s) à fila');
+  return novos;
+}
+
+async function varrerPastaOP(){
+  if(!dirOP){ alert('Conecte primeiro a pasta "OP para imprimir".'); return; }
+  var achados = [];
+  for await (var ent of dirOP.values()){
+    if(ent.kind === 'file' && /\.pdf$/i.test(ent.name)) achados.push(ent);
+  }
+  var n = addOPs(achados);
+  if(!n) log('Nada novo na pasta OP para imprimir');
+}
+
+async function processar(item){
+  if(item.status === 'pronto') return;
+  if(!dirProjetos){ setStatus(item,'pendente','Pasta Projetos não conectada — anexe o desenho à mão ou conecte o servidor'); return; }
+  setStatus(item,'processando','procurando o desenho…');
+  try{
+    var r = await localizarDesenho(item.codigo);
+    if(r.erro){ setStatus(item,'pendente', r.erro); log('FALHA ' + item.codigo + ' — ' + r.erro); return; }
+    if(r.candidatos){
+      item.candidatos = r.candidatos; item.caminho = r.caminho;
+      setStatus(item,'multiplo', r.motivo + ' — escolha qual usar');
+      log('ATENCAO ' + item.codigo + ' — ' + r.motivo);
+      return;
+    }
+    item.caminho = r.caminho;
+    await finalizar(item, await bytesDe(r.arquivo.h), r.arquivo.nome);
+  }catch(e){
+    setStatus(item,'erro', e && e.message ? e.message : String(e));
+    log('ERRO ' + item.codigo + ' — ' + (e && e.message ? e.message : e));
+  }
+}
+
+async function finalizar(item, bytesDes, nomeArquivoDesenho){
+  setStatus(item,'processando','juntando os PDFs…');
+  var bytesOP = await bytesDe(item.origem);
+  var saida = item.codigo + ' - OP + Desenho.pdf';
+  var pdf = await juntar(bytesOP, bytesDes, item.codigo);
+
+  if(dirOP){
+    await gravarEmProntos(saida, pdf);
+    if(document.getElementById('chkCopiarDesenho').checked) await gravarEmProntos(nomeArquivoDesenho, bytesDes);
+    item.destino = 'Prontos/' + saida;
+  }else{
+    baixar(saida, pdf);
+    item.destino = 'baixado: ' + saida;
+  }
+  item.desenho = nomeArquivoDesenho;
+  item.candidatos = null;
+  setStatus(item,'pronto', item.destino);
+  log('OK ' + item.codigo + ' — desenho ' + nomeArquivoDesenho + (item.caminho ? ' de ' + item.caminho : ' (anexado à mão)') + ' → ' + item.destino);
+}
+
+async function gerarTodos(){
+  if(rodando) return;
+  var pend = fila.filter(function(i){ return i.status !== 'pronto' && i.status !== 'multiplo'; });
+  if(!pend.length){ log('Nada a gerar'); return; }
+  rodando = true;
+  var wrap = document.getElementById('progressWrap'), bar = document.getElementById('progressBar');
+  wrap.hidden = false; bar.style.width = '0%';
+  document.getElementById('btnGerar').disabled = true;
+  for(var i=0;i<pend.length;i++){
+    await processar(pend[i]);
+    bar.style.width = Math.round(((i+1)/pend.length)*100) + '%';
+  }
+  document.getElementById('btnGerar').disabled = false;
+  rodando = false;
+  setTimeout(function(){ wrap.hidden = true; }, 1200);
+  var ok = fila.filter(function(i){ return i.status === 'pronto'; }).length;
+  log('Lote concluído — ' + ok + ' de ' + fila.length + ' OP(s) prontas');
+}
+
+/* ---------- render ---------- */
+var ROTULO = {fila:'Na fila', processando:'Processando', pronto:'Pronto', pendente:'Pendente', multiplo:'Confirmar', erro:'Erro'};
+
+function render(){
+  var tb = document.getElementById('tbody');
+  if(!fila.length){
+    tb.innerHTML = '<tr><td colspan="4"><div class="empty">Nenhuma OP na fila.</div></td></tr>';
+  }else{
+    tb.innerHTML = fila.map(function(it){
+      var cands = '';
+      if(it.status === 'multiplo' && it.candidatos){
+        cands = '<div class="cands">' + it.candidatos.map(function(c, i){
+          return '<div class="cand"><span>' + esc(c.nome) + '</span><button class="btn sm" data-usar="' + it.id + '" data-i="' + i + '" type="button">Usar este</button></div>';
+        }).join('') + '</div>';
+      }
+      var acoes = '';
+      if(it.status === 'pendente' || it.status === 'erro'){
+        acoes = '<div class="row-actions">' +
+                '<button class="btn sm" data-retry="' + it.id + '" type="button">Tentar de novo</button>' +
+                '<button class="btn sm" data-manual="' + it.id + '" type="button">Anexar desenho</button></div>';
+      }else if(it.status === 'fila'){
+        acoes = '<button class="btn sm" data-retry="' + it.id + '" type="button">Gerar</button>';
+      }
+      return '<tr>' +
+        '<td><div class="cod">' + esc(it.codigo) + '<small>' + esc(nomeDesenho(it.codigo)) + '</small></div></td>' +
+        '<td><span class="st ' + it.status + '"><span class="dot"></span>' + ROTULO[it.status] + '</span></td>' +
+        '<td><div class="msg">' + esc(it.msg || '') +
+          (it.caminho ? '<span class="path">' + esc(it.caminho) + '</span>' : '') +
+          (it.desenho ? '<span class="path">desenho: ' + esc(it.desenho) + '</span>' : '') +
+        '</div>' + cands + '</td>' +
+        '<td>' + acoes + '</td></tr>';
+    }).join('');
+  }
+  var c = {pronto:0, pendente:0, multiplo:0, erro:0};
+  fila.forEach(function(i){ if(c[i.status] !== undefined) c[i.status]++; });
+  document.getElementById('counts').innerHTML =
+    '<span><b>' + fila.length + '</b> na fila</span>' +
+    '<span><b style="color:var(--green)">' + c.pronto + '</b> pronta' + (c.pronto === 1 ? '' : 's') + '</span>' +
+    '<span><b style="color:var(--amber)">' + (c.pendente + c.multiplo) + '</b> aguardando</span>' +
+    '<span><b style="color:var(--red-soft)">' + c.erro + '</b> com erro</span>';
+}
+
+function acharItem(id){ return fila.filter(function(i){ return i.id === Number(id); })[0]; }
+
+/* ---------- conexoes ---------- */
+function pintarChip(id, txtId, handle, rotulo, salvo){
+  var chip = document.getElementById(id);
+  chip.classList.toggle('on', !!handle && !salvo);
+  chip.classList.toggle('saved', !!salvo);
+  document.getElementById(txtId).textContent = handle ? (salvo ? rotulo + ' — reconectar' : handle.name) : rotulo;
+}
+
+async function conectarProjetos(handleSalvo){
+  try{
+    var h = handleSalvo || await window.showDirectoryPicker({id:'tecnodrill-projetos', mode:'read'});
+    if(!await temPermissao(h, 'read')) return;
+    dirProjetos = h; projetosOk = true; cacheProjeto = {};
+    await guardar('projetos', h);
+    pintarChip('chipProjetos','txtProjetos', h, 'Conectar pasta Projetos', false);
+    log('Pasta de projetos conectada: ' + h.name);
+  }catch(e){ if(e && e.name !== 'AbortError') log('Não foi possível conectar Projetos: ' + e.message); }
+}
+
+async function conectarOP(handleSalvo){
+  try{
+    var h = handleSalvo || await window.showDirectoryPicker({id:'tecnodrill-op-imprimir', mode:'readwrite'});
+    if(!await temPermissao(h, 'readwrite')) return;
+    dirOP = h; opOk = true;
+    await guardar('opimprimir', h);
+    pintarChip('chipOP','txtOP', h, 'Conectar OP para imprimir', false);
+    log('Pasta OP para imprimir conectada: ' + h.name);
+  }catch(e){ if(e && e.name !== 'AbortError') log('Não foi possível conectar OP para imprimir: ' + e.message); }
+}
+
+/* ---------- eventos ---------- */
+document.getElementById('chipProjetos').addEventListener('click', function(){ conectarProjetos(projetosOk ? null : dirProjetos); });
+document.getElementById('chipOP').addEventListener('click', function(){ conectarOP(opOk ? null : dirOP); });
+document.getElementById('btnVarrer').addEventListener('click', varrerPastaOP);
+document.getElementById('btnGerar').addEventListener('click', gerarTodos);
+document.getElementById('btnLimpar').addEventListener('click', function(){ fila = []; seq = 0; render(); log('Fila limpa'); });
+
+var drop = document.getElementById('drop'), inputOPs = document.getElementById('fileOPs');
+drop.addEventListener('click', function(){ inputOPs.click(); });
+inputOPs.addEventListener('change', function(){ addOPs(Array.prototype.slice.call(inputOPs.files)); inputOPs.value = ''; });
+['dragenter','dragover'].forEach(function(ev){ drop.addEventListener(ev, function(e){ e.preventDefault(); drop.classList.add('over'); }); });
+['dragleave','drop'].forEach(function(ev){ drop.addEventListener(ev, function(e){ e.preventDefault(); drop.classList.remove('over'); }); });
+drop.addEventListener('drop', function(e){ addOPs(Array.prototype.slice.call(e.dataTransfer.files)); });
+
+document.getElementById('tbody').addEventListener('click', async function(e){
+  var b = e.target.closest ? e.target.closest('button') : null;
+  if(!b) return;
+  var item;
+  if(b.dataset.retry){ item = acharItem(b.dataset.retry); if(item) processar(item); }
+  else if(b.dataset.usar){
+    item = acharItem(b.dataset.usar);
+    if(!item || !item.candidatos) return;
+    var c = item.candidatos[Number(b.dataset.i)];
+    try{ await finalizar(item, await bytesDe(c.h), c.nome); }
+    catch(err){ setStatus(item,'erro', err.message || String(err)); }
+  }
+  else if(b.dataset.manual){
+    item = acharItem(b.dataset.manual);
+    if(!item) return;
+    var inp = document.createElement('input');
+    inp.type = 'file'; inp.accept = 'application/pdf';
+    inp.addEventListener('change', async function(){
+      if(!inp.files[0]) return;
+      try{ item.caminho = null; await finalizar(item, await bytesDe(inp.files[0]), inp.files[0].name); }
+      catch(err){ setStatus(item,'erro', err.message || String(err)); }
+    });
+    inp.click();
+  }
+});
+
+document.getElementById('btnLog').addEventListener('click', function(){
+  var csv = '﻿Hora;Evento\n' + logLinhas.map(function(l){ return '"' + l.hora + '";"' + l.texto.replace(/"/g,'""') + '"'; }).join('\n');
+  var url = URL.createObjectURL(new Blob([csv], {type:'text/csv;charset=utf-8'}));
+  var a = document.createElement('a');
+  a.href = url; a.download = 'log-op-desenho.csv'; a.click();
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 5000);
+});
+
+/* ganchos usados apenas pelo teste automatizado do navegador */
+window.__setar=function(p,o){ dirProjetos=p; projetosOk=true; dirOP=o; opOk=true; cacheProjeto={}; };
+window.__addOPs=addOPs; window.__gerar=gerarTodos; window.__fila=function(){ return fila; }; window.__log=function(){ return logLinhas; };
+
+/* ---------- inicializacao ---------- */
+(async function init(){
+  if(!window.showDirectoryPicker){
+    document.getElementById('bannerSuporte').hidden = false;
+    if(location.protocol === 'file:') document.getElementById('bannerHttps').hidden = false;
+    document.getElementById('btnVarrer').disabled = true;
+    render();
+    log('Modo limitado: sem acesso às pastas do servidor neste navegador');
+    return;
+  }
+  render();
+  var p = await recuperar('projetos');
+  var o = await recuperar('opimprimir');
+  if(p){ dirProjetos = p; pintarChip('chipProjetos','txtProjetos', p, 'Pasta Projetos', true); }
+  if(o){ dirOP = o; pintarChip('chipOP','txtOP', o, 'OP para imprimir', true); }
+  if(p || o) log('Pastas lembradas da última sessão — clique nos botões acima para reconectar');
+  else log('Conecte a pasta Projetos (servidor de engenharia) e a pasta OP para imprimir');
+})();
+</script>
+</body>
+</html>
