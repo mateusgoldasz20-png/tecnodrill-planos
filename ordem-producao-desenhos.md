@@ -346,3 +346,60 @@ Colunas já mapeadas em `custo-producao.html`, reaproveitáveis aqui:
 | `Cons.previsto item OP` | quantidade por conjunto |
 
 Abas do export: `ITENS OP CUSTO`, `ACOMP PROD`, `RET SERVC EXT`.
+
+---
+
+## 12. Instalação — do repositório ao chão de fábrica
+
+Guia visual completo: [Instalação do OP + Desenho](https://claude.ai/code/artifact/ae888cfa-5c93-42bf-b34c-4f7c056a0411)
+
+```mermaid
+flowchart TD
+    S(["Branch pronta no GitHub"]) --> P1["1 · Juntar a branch na main"]
+    P1 --> D1{"2 · O link do app abre<br/>no navegador?"}
+    D1 -->|não| F1["Ligue o GitHub Pages<br/>Settings → Pages → Branch: main / root"]
+    F1 -.->|volte ao 2| D1
+    D1 -->|sim| D2{"3 · A pasta Projetos aparece<br/>no seletor do Windows?"}
+    D2 -->|não| F2["Mapeie a unidade de rede<br/>Explorer → Mapear unidade → Z:"]
+    F2 -.->|volte ao 3| D2
+    D2 -->|sim| P4["4 · Conectar Projetos (ver)<br/>e OP para imprimir (editar)"]
+    P4 --> D3{"5 · Teste com 1 OP:<br/>veio o desenho certo?"}
+    D3 -->|não| F3["Leia a mensagem na fila,<br/>corrija e clique em Tentar de novo"]
+    F3 -.->|volte ao 5| D3
+    D3 -->|sim| P6["6 · Imprimir e conferir escala"]
+    P6 --> G(["7 · Liberar para a equipe"])
+```
+
+### Os sete passos
+
+| # | Ação | Pronto quando |
+|---|---|---|
+| 1 | Juntar a branch `claude/siger-producao-markdown-4r3ykc` na `main` — é a `main` que o Pages publica | `op-desenhos.html` aparece na lista de arquivos da `main` |
+| 2 | Abrir `…github.io/tecnodrill-planos/op-desenhos.html`. Se der 404: **Settings → Pages → Branch: main / (root)** | A tela abre com "OP + DESENHO" no topo |
+| 3 | Mapear o servidor como unidade de rede (`Z:`), marcando "Reconectar ao entrar" | Você abre `Z: → Projetos → 9 → 9.57 → Desenho PDF` pelo Explorer |
+| 4 | Conectar **Projetos** (Ver arquivos) e **OP para imprimir** (Editar arquivos) | Os dois botões ficam verdes com o nome da pasta |
+| 5 | Testar com 4 OPs de projetos diferentes cujos desenhos você reconhece | O carimbo do desenho bate com o código da OP |
+| 6 | Imprimir de verdade e conferir escala e ordem das páginas | Sai igual ao que a produção recebe hoje |
+| 7 | Liberar para a equipe — cada pessoa repete 3 e 4 no PC dela | A primeira OP impressa por outra pessoa sai certa |
+
+**O passo 5 é o que não dá para pular:** é nele que se descobre se a estrutura real do servidor
+bate com a regra descrita na seção 4.
+
+### Tradução das mensagens de erro
+
+| O que aparece na tela | O que significa | O que fazer |
+|---|---|---|
+| O botão "Conectar pasta Projetos" não abre nada | Navegador sem suporte, ou página aberta do disco | Chrome ou Edge, pelo endereço `https://` |
+| `Família 9 não encontrada dentro de Projetos` | Conectou a pasta errada | Reconectar apontando para `Projetos`, a que contém as pastas de 1 a 9 |
+| `Projeto 9.57 não existe na família 9` | A pasta do projeto tem outro nome | Conferir no Explorer o nome real |
+| `Projeto 9.57 não tem pasta Desenho / Desenho PDF` | Nome de pasta não previsto pela regra | Ajustar a lista de nomes aceitos (ver ponto em aberto 4) |
+| `Só existe versão REV de 9.57.00.004` | Na pasta só há a revisão antiga | Engenharia: o desenho vigente não está publicado |
+| `2 arquivos com o código 9.57.00.004` | Dois desenhos com o mesmo número | Escolher na tela qual usar |
+| A OP não entra na fila ao arrastar | O nome do PDF não tem os 8 dígitos | Renomear para `95700004.pdf` |
+| Demora no primeiro arquivo de cada projeto | Leitura da pasta de desenhos pela rede | Esperado — o índice fica em cache e as OPs seguintes do mesmo projeto saem na hora |
+
+### Permissão de pasta entre sessões
+
+Ao reabrir o app, os dois botões aparecem em amarelo pedindo reconexão. É comportamento do
+navegador, não do app: a File System Access API guarda a referência da pasta (em IndexedDB), mas
+exige um gesto do usuário para reativar a permissão a cada sessão. É um clique em cada botão.
