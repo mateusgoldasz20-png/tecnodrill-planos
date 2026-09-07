@@ -1,0 +1,186 @@
+:root{
+  --fundo:#0d0e12;
+  --carta:#16181f;
+  --carta-2:#1d2029;
+  --borda:#2a2e3a;
+  --texto:#eef0f5;
+  --apagado:#9aa1b1;
+  --fraco:#6d7484;
+  --realce:#d6316f;
+  --realce-2:#f2703a;
+  --ok:#2bcf8a;
+  --ruim:#ff6069;
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+
+/* Qualquer regra de autor com 'display' vence o [hidden] que vem do
+   navegador. Sem esta linha, esconder algo pelo .hidden do JS nao
+   funciona em elemento que tenha display proprio. */
+[hidden]{display:none!important}
+
+body{
+  min-height:100vh;
+  padding:40px 20px 60px;
+  color:var(--texto);
+  font:16px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  -webkit-font-smoothing:antialiased;
+  background:
+    radial-gradient(720px 420px at 10% -10%, rgba(214,49,111,.16), transparent 65%),
+    radial-gradient(620px 380px at 95% 0%, rgba(242,112,58,.10), transparent 60%),
+    var(--fundo);
+}
+
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+.folha{max-width:660px;margin:0 auto}
+
+/* ---------------------------- cabecalho ---------------------------- */
+
+.topo{display:flex;align-items:flex-start;gap:16px;margin-bottom:28px}
+
+.selo{
+  flex:none;width:46px;height:46px;border-radius:13px;
+  display:grid;place-items:center;color:#fff;
+  background:linear-gradient(135deg,var(--realce),var(--realce-2));
+  box-shadow:0 10px 26px rgba(214,49,111,.28);
+}
+.selo svg{width:24px;height:24px}
+
+.topo h1{font-size:24px;font-weight:700;letter-spacing:-.01em;line-height:1.2}
+.topo p{margin-top:5px;color:var(--apagado);font-size:14.5px;max-width:46ch}
+
+/* ------------------------------ busca ------------------------------ */
+
+.busca{display:flex;gap:10px;margin-bottom:18px}
+
+.busca input{
+  flex:1;min-width:0;height:52px;padding:0 16px;
+  color:var(--texto);font:inherit;font-size:15px;
+  background:var(--carta);border:1px solid var(--borda);border-radius:12px;
+  transition:border-color .16s ease,box-shadow .16s ease;
+}
+.busca input::placeholder{color:var(--fraco)}
+.busca input:focus{
+  outline:none;border-color:var(--realce);
+  box-shadow:0 0 0 3px rgba(214,49,111,.18);
+}
+
+.busca button{
+  flex:none;position:relative;height:52px;padding:0 26px;
+  color:#fff;font:inherit;font-weight:600;font-size:15px;cursor:pointer;
+  background:linear-gradient(135deg,var(--realce),var(--realce-2));
+  border:0;border-radius:12px;
+  transition:filter .16s ease,transform .1s ease;
+}
+.busca button:hover:not(:disabled){filter:brightness(1.08)}
+.busca button:active:not(:disabled){transform:translateY(1px)}
+.busca button:disabled{cursor:progress;filter:saturate(.5) brightness(.8)}
+
+.busca button .giro{display:none}
+.busca button.ocupado .rotulo{visibility:hidden}
+.busca button.ocupado .giro{
+  display:block;position:absolute;inset:0;margin:auto;
+  width:18px;height:18px;border-radius:50%;
+  border:2px solid rgba(255,255,255,.35);border-top-color:#fff;
+  animation:girar .7s linear infinite;
+}
+@keyframes girar{to{transform:rotate(360deg)}}
+
+/* ------------------------------ aviso ------------------------------ */
+
+.aviso{
+  margin-bottom:18px;padding:14px 16px;border-radius:12px;font-size:14.5px;
+  background:var(--carta);border:1px solid var(--borda);color:var(--apagado);
+}
+.aviso.erro{border-color:rgba(255,96,105,.45);background:rgba(255,96,105,.08);color:#ffb3b7}
+.aviso strong{display:block;margin-bottom:4px;color:var(--texto);font-weight:600}
+.aviso.erro strong{color:#ffd2d5}
+.aviso details{margin-top:10px}
+.aviso summary{cursor:pointer;color:var(--fraco);font-size:13px}
+.aviso ul{margin:8px 0 0 18px;color:var(--fraco);font-size:12.5px;line-height:1.7}
+
+/* ---------------------------- resultado ---------------------------- */
+
+.resultado{display:flex;flex-direction:column;gap:14px}
+
+.cartao{
+  display:flex;gap:16px;padding:16px;
+  background:var(--carta);border:1px solid var(--borda);border-radius:16px;
+}
+
+.capa{
+  flex:none;position:relative;width:104px;aspect-ratio:9/16;overflow:hidden;
+  background:var(--carta-2);border-radius:10px;
+}
+.capa img{width:100%;height:100%;object-fit:cover;display:block}
+.capa img[hidden]+.semcapa{display:grid}
+.semcapa{
+  display:none;position:absolute;inset:0;place-items:center;
+  color:var(--fraco);font-size:11px;text-align:center;padding:6px;
+}
+
+.corpo{flex:1;min-width:0;display:flex;flex-direction:column;gap:9px}
+
+.autor{font-weight:600;font-size:15px}
+.autor span{color:var(--fraco);font-weight:400;font-size:13px;margin-left:6px}
+
+.legenda{
+  color:var(--apagado);font-size:13.5px;line-height:1.5;
+  display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;
+  line-clamp:3;overflow:hidden;white-space:pre-wrap;word-break:break-word;
+}
+.legenda:empty{display:none}
+
+.etiquetas{display:flex;flex-wrap:wrap;gap:6px}
+.etiquetas span{
+  padding:3px 9px;border-radius:20px;font-size:11.5px;color:var(--apagado);
+  background:var(--carta-2);border:1px solid var(--borda);
+}
+
+.acoes{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:auto;padding-top:4px}
+
+.baixar{
+  height:40px;padding:0 20px;color:#fff;font:inherit;font-weight:600;font-size:14px;
+  cursor:pointer;background:var(--realce);border:0;border-radius:10px;
+  transition:filter .16s ease;
+}
+.baixar:hover:not(:disabled){filter:brightness(1.12)}
+.baixar:disabled{cursor:progress;filter:saturate(.4) brightness(.75)}
+.baixar.pronto{background:var(--ok)}
+
+.abrir{color:var(--fraco);font-size:13px;text-decoration:none;border-bottom:1px solid transparent}
+.abrir:hover{color:var(--apagado);border-bottom-color:var(--borda)}
+
+.progresso{height:5px;border-radius:99px;background:var(--carta-2);overflow:hidden}
+.progresso span{
+  display:block;height:100%;width:0;border-radius:99px;
+  background:linear-gradient(90deg,var(--realce),var(--realce-2));
+  transition:width .18s ease;
+}
+.progresso.indefinida span{
+  width:35%;animation:correr 1.1s ease-in-out infinite;
+}
+@keyframes correr{0%{margin-left:-35%}100%{margin-left:100%}}
+
+.recado{font-size:12.5px;color:var(--apagado)}
+.recado.erro{color:var(--ruim)}
+
+/* ----------------------------- rodape ------------------------------ */
+
+.rodape{margin-top:34px;color:var(--fraco);font-size:12.5px;line-height:1.7}
+
+/* ----------------------------- celular ----------------------------- */
+
+@media (max-width:560px){
+  body{padding:26px 16px 44px}
+  .busca{flex-wrap:wrap}
+  .busca input{flex-basis:100%}
+  .busca button{width:100%}
+  .cartao{flex-direction:column}
+  .capa{width:100%;aspect-ratio:16/9}
+}
+
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important}
+}

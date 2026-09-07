@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Baixador de Reels</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><text y='19' font-size='19'>%E2%AC%87%EF%B8%8F</text></svg>">
+<link rel="stylesheet" href="estilo.css">
+</head>
+<body>
+
+<main class="folha">
+
+  <header class="topo">
+    <div class="selo" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="18" height="18" rx="5"/>
+        <path d="M12 8.5v7"/><path d="m9 12.5 3 3 3-3"/>
+      </svg>
+    </div>
+    <div>
+      <h1>Baixador de Reels</h1>
+      <p>Cole o link de um reel ou de um post público do Instagram e salve o vídeo em MP4.</p>
+    </div>
+  </header>
+
+  <form class="busca" id="formulario" autocomplete="off">
+    <label class="sr" for="link">Link do post</label>
+    <input id="link" name="link" type="text" inputmode="url" spellcheck="false"
+           placeholder="https://www.instagram.com/reel/..." required>
+    <button type="submit" id="botaoBuscar">
+      <span class="rotulo">Buscar</span>
+      <span class="giro" aria-hidden="true"></span>
+    </button>
+  </form>
+
+  <div id="aviso" class="aviso" role="status" hidden></div>
+
+  <section id="resultado" class="resultado" hidden></section>
+
+  <footer class="rodape">
+    <p>Roda só na sua máquina — nada é enviado para fora além do próprio Instagram.</p>
+    <p>Funciona apenas com conteúdo público. Baixe respeitando os direitos de quem publicou.</p>
+  </footer>
+
+</main>
+
+<template id="moldeItem">
+  <article class="cartao">
+    <div class="capa">
+      <img alt="" referrerpolicy="no-referrer">
+      <span class="semcapa">sem prévia</span>
+    </div>
+    <div class="corpo">
+      <div class="autor"></div>
+      <p class="legenda"></p>
+      <div class="etiquetas"></div>
+      <div class="acoes">
+        <button type="button" class="baixar">Baixar MP4</button>
+        <a class="abrir" target="_blank" rel="noopener noreferrer">Abrir vídeo direto</a>
+      </div>
+      <div class="progresso" hidden><span></span></div>
+      <div class="recado" hidden></div>
+    </div>
+  </article>
+</template>
+
+<script src="app.js"></script>
+</body>
+</html>
