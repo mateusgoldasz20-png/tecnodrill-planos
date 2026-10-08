@@ -316,6 +316,8 @@ footer{padding:26px 0 40px;margin-top:22px;border-top:1px solid var(--edge);colo
   </div>
 </div>
 
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script>
 const SENHA = '1995';
 const LOGO  = 'data:image/jpeg;base64,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';
@@ -567,12 +569,14 @@ var TDREL = (function(){
       }catch(e){ cb(null, null); }
     });
   }
-  function gravar(file, origem, cb){
+  function gravar(file, origem, cb, tsExterno){
     file.arrayBuffer().then(function(buf){
       abrir(function(err, db){
         if(err){ if(cb) cb(err); return; }
         try{
-          var reg = {name: file.name, mime: file.type, data: buf, ts: new Date().toISOString(), origem: origem || ''};
+          /* tsExterno: arquivo que veio da nuvem mantem o carimbo de quem
+             publicou, para as maquinas nao se acharem sempre "mais novas" */
+          var reg = {name: file.name, mime: file.type, data: buf, ts: tsExterno || new Date().toISOString(), origem: origem || ''};
           var tx = db.transaction('files', 'readwrite');
           tx.objectStore('files').put(reg, CHAVE);
           tx.oncomplete = function(){ avisar({name: reg.name, ts: reg.ts, origem: reg.origem}); if(cb) cb(null, reg); };
@@ -595,6 +599,120 @@ var TDREL = (function(){
   }
   return {ler: ler, gravar: gravar, avisar: avisar, ouvir: ouvir};
 })();
+
+/* ===== RELATORIO PCP NA NUVEM =====
+   Faz o arquivo da Central valer entre COMPUTADORES, nao so' entre os sistemas
+   do mesmo navegador. Guarda em dois pedacos no Realtime Database:
+     meta -> {nome, mime, ts, tamanho, origem}  (leve, e' o que fica escutando)
+     b64  -> o arquivo inteiro em base64        (so' baixa quando meta muda)
+   Sem essa separacao, cada abertura da Central arrastaria ~3 MB a toa. */
+var TDNUVEM = (function(){
+  var CFG = {
+    apiKey: "AIzaSyDoIaQx5_njGyKjGbgmmBwD4-SWnXSW38Q",
+    authDomain: "wh2-tecnodrill.firebaseapp.com",
+    databaseURL: "https://wh2-tecnodrill-default-rtdb.firebaseio.com",
+    projectId: "wh2-tecnodrill",
+    storageBucket: "wh2-tecnodrill.firebasestorage.app",
+    messagingSenderId: "836062396002",
+    appId: "1:836062396002:web:3f461a33c926155f825b3b"
+  };
+  var RAIZ = 'relatorioPcp';
+  var metaNuvem = null;        /* ultima meta vista la' em cima */
+  var aplicando = false;       /* evita reagir ao arquivo que nos mesmos acabamos de gravar */
+
+  function pronto(){
+    if(typeof firebase === 'undefined' || !firebase.database) return false;
+    try{ if(!firebase.apps.length) firebase.initializeApp(CFG); }catch(e){ return false; }
+    return true;
+  }
+  /* Conversao em pedacos: fromCharCode.apply com um array de 2 MB estoura a
+     pilha de chamadas do navegador. */
+  function paraB64(buf){
+    var b = new Uint8Array(buf), passo = 0x8000, partes = [];
+    for(var i = 0; i < b.length; i += passo){
+      partes.push(String.fromCharCode.apply(null, b.subarray(i, i + passo)));
+    }
+    return btoa(partes.join(''));
+  }
+  function deB64(txt){
+    var bin = atob(txt), b = new Uint8Array(bin.length);
+    for(var i = 0; i < bin.length; i++) b[i] = bin.charCodeAt(i);
+    return b;
+  }
+  function assinatura(m){
+    if(!m) return '';
+    return [m.name || m.nome || '', m.tamanho || 0, m.ts || ''].join('|');
+  }
+  /* Publica o arquivo local - mas SO' se ele for mais novo que o da nuvem.
+     Comparar apenas "e' diferente" abriria um buraco serio: uma maquina que
+     abrisse a Central com um relatorio velho sobrescreveria, para todo mundo, o
+     mais recente. Por isso le a meta da nuvem na hora e compara as datas. */
+  function publicar(cb){
+    if(!pronto()){ if(cb) cb(new Error('Firebase indisponível')); return; }
+    TDREL.ler(function(file, meta){
+      if(!file || !meta){ if(cb) cb(null, false); return; }
+      firebase.database().ref(RAIZ + '/meta').once('value').then(function(snap){
+        var m = snap.val();
+        if(m) metaNuvem = m;
+        var localTs = Date.parse(meta.ts || ''), nuvemTs = m ? Date.parse(m.ts || '') : 0;
+        if(!localTs){ if(cb) cb(null, false); return; }
+        if(nuvemTs && nuvemTs >= localTs){ if(cb) cb(null, false); return; }   /* a nuvem ja' tem igual ou melhor */
+        enviar(file, meta, cb);
+      }).catch(function(e){ if(cb) cb(e); });
+    });
+  }
+  function enviar(file, meta, cb){
+    file.arrayBuffer().then(function(buf){
+      var m = {nome: meta.name, mime: file.type || '', ts: meta.ts,
+               tamanho: meta.tamanho, origem: meta.origem || ''};
+      firebase.database().ref(RAIZ).set({meta: m, b64: paraB64(buf)})
+        .then(function(){ metaNuvem = m; if(cb) cb(null, true); })
+        .catch(function(e){ if(cb) cb(e); });
+    }).catch(function(e){ if(cb) cb(e); });
+  }
+  /* Fica de olho na meta; so' baixa o arquivo quando ha' versao mais nova que a
+     deste navegador. */
+  function escutar(aoAplicar){
+    if(!pronto()){ setTimeout(function(){ escutar(aoAplicar); }, 1500); return; }
+    firebase.database().ref(RAIZ + '/meta').on('value', function(snap){
+      var m = snap.val();
+      if(!m || !m.ts) return;
+      metaNuvem = m;
+      TDREL.ler(function(file, local){
+        var localTs = local ? Date.parse(local.ts || '') : 0;
+        var nuvemTs = Date.parse(m.ts || '');
+        if(!nuvemTs || (localTs && localTs >= nuvemTs)) return;   /* ja' temos igual ou mais novo */
+        baixar(m, aoAplicar);
+      });
+    }, function(e){ console.error('Relatório PCP na nuvem:', e); });
+  }
+  function baixar(m, aoAplicar){
+    if(aplicando) return;
+    aplicando = true;
+    if(aoAplicar) aoAplicar('baixando', m);
+    firebase.database().ref(RAIZ + '/b64').once('value').then(function(snap){
+      var txt = snap.val();
+      if(!txt){ aplicando = false; return; }
+      var arq = new File([deB64(txt)], m.nome || 'RELATORIO PCP.XLSX', {type: m.mime || ''});
+      /* grava com o ts ORIGINAL de quem publicou - se usasse a hora de agora,
+         cada maquina pareceria ter o arquivo "mais novo" e elas ficariam se
+         republicando em circulo */
+      TDREL.gravar(arq, m.origem || 'Central', function(err){
+        aplicando = false;
+        if(aoAplicar) aoAplicar(err ? 'erro' : 'pronto', m, err);
+      }, m.ts);
+    }).catch(function(e){ aplicando = false; if(aoAplicar) aoAplicar('erro', m, e); });
+  }
+  return {publicar: publicar, escutar: escutar};
+})();
+
+/* mensagem passageira no cartao: mostra o recado e volta ao texto normal */
+function relAviso(txt){
+  var el = document.getElementById('relInfo');
+  if(!el) return;
+  el.textContent = el.textContent + ' · ' + txt;
+  setTimeout(relAtualizarInfo, 5000);
+}
 
 /* nomes das abas lidos direto do zip, sem biblioteca de planilha */
 async function abasDoXlsx(file){
@@ -645,6 +763,12 @@ async function relCarregar(file){
   return new Promise(res => TDREL.gravar(file, 'Central', err => {
     if(err){ relInfo('Não foi possível guardar o relatório: ' + err.message, 'erro'); res(false); return; }
     relAtualizarInfo();
+    /* manda para a nuvem: e' o que faz os outros computadores receberem */
+    relInfo('Enviando para os outros computadores…');
+    TDNUVEM.publicar(function(e, enviou){
+      if(e) relInfo('Guardado neste navegador, mas não foi para a nuvem: ' + e.message, 'erro');
+      else { relAtualizarInfo(); if(enviou) relAviso('enviado para os outros computadores'); }
+    });
     res(true);
   }));
 }
@@ -766,7 +890,17 @@ window.addEventListener('storage', e => {
 });
 $('#q').addEventListener('input', e => render(e.target.value));
 $('#relInput').addEventListener('change', e => { const f = e.target.files && e.target.files[0]; if(f) relCarregar(f); e.target.value = ''; });
-TDREL.ouvir(relAtualizarInfo);
+TDREL.ouvir(function(){
+  relAtualizarInfo();
+  /* relatorio gravado por outro sistema deste navegador tambem sobe */
+  TDNUVEM.publicar(function(){ relAtualizarInfo(); });
+});
+TDNUVEM.escutar(function(fase, m){
+  if(fase === 'baixando') relInfo('Baixando relatório mais novo de outro computador…');
+  else if(fase === 'pronto'){ relAtualizarInfo(); relAviso('recebido de outro computador'); }
+});
+/* um arquivo que ja' esteja so' aqui sobe assim que a Central abre */
+TDNUVEM.publicar(function(){ relAtualizarInfo(); });
 $('#backBtn').addEventListener('click', voltar);
 $('#reloadBtn').addEventListener('click', recarregar);
 document.addEventListener('keydown', e => { if(e.key === 'Escape' && !$('#runner').hidden) voltar(); });
